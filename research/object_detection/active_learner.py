@@ -90,12 +90,12 @@ def get_dataset():
             # Separate frame path and clean annotation flag
             split_line = line.split(' ')
             # Remove trailing \n
-            clean = True if split_line[1][:-1] == '1' else False
+            verified = True if split_line[1][:-1] == '1' else False
             path = split_line[0]
             split_path = path.split('/')
             filename = split_path[-1]
             video = split_path[-3]+'/'+split_path[-2]
-            dataset.append({'idx':idx,'filename':filename,'video':video,'clean':clean})
+            dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
             idx+=1
     videos = set([d['video'] for d in dataset])
     return dataset,videos
@@ -104,7 +104,7 @@ def selectRandomPerVideo(dataset,videos,active_set):
         indices = []
         for v in videos:
             #Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v and f['clean'] ]
+            frames = [f['idx'] for f in dataset if f['video'] == v and f['verified'] ]
 
             # Remove if already in active set
             frames = [f for f in frames if f not in active_set]
