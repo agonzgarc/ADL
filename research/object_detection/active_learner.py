@@ -16,7 +16,7 @@ import os
 import tensorflow as tf
 
 from object_detection import trainer
-from object_detection import evaluator
+from object_detection import evaluator_al as evaluator
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
@@ -46,10 +46,15 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
                     'Directory to save performance json files.')
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
-flags.DEFINE_string('pipeline_config_path', '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
+flags.DEFINE_string('pipeline_config_path', '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-
+flags.DEFINE_string('name', 'Rnd_short',
+                    'Name of method to run')
+flags.DEFINE_string('cycles','10',
+                    'Number of cycles')
+flags.DEFINE_string('runs','3',
+                    'Number of runs for each experiment')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -69,26 +74,28 @@ data_info = {'data_dir': FLAGS.data_dir,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_ALL'}
 
-# Harcoded keys to retrieve metrics 
+# Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
 keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02958343'
 keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02834778'
 keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 
-perf_dir = '/home/abel/DATA/faster_rcnn/resnet101_coco/performances/'
 
 def get_dataset():
     dataset = []
-    path_file = FLAGS.data_dir + '/AL/train_ALL.txt'
+    path_file = FLAGS.data_dir + '/AL/train_ALL_clean.txt'
     with open(path_file,'r') as pF:
         idx = 0
         for line in pF:
+            # Separate frame path and clean annotation flag
+            split_line = line.split(' ')
             # Remove trailing \n
-            path = line[:-1]
+            clean = True if split_line[1][:-1] == '1' else False
+            path = split_line[0]
             split_path = path.split('/')
             filename = split_path[-1]
             video = split_path[-3]+'/'+split_path[-2]
-            dataset.append({'idx':idx,'filename':filename,'video':video})
+            dataset.append({'idx':idx,'filename':filename,'video':video,'clean':clean})
             idx+=1
     videos = set([d['video'] for d in dataset])
     return dataset,videos
@@ -97,14 +104,14 @@ def selectRandomPerVideo(dataset,videos,active_set):
         indices = []
         for v in videos:
             #Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v]
+            frames = [f['idx'] for f in dataset if f['video'] == v and f['clean'] ]
 
             # Remove if already in active set
             frames = [f for f in frames if f not in active_set]
 
             # If all frames of video are in active set, ignore video
             if len(frames) > 0:
-                idxR = random.randint(1,len(frames)-1)
+                idxR = random.randint(0,len(frames)-1)
                 indices.append(frames[idxR])
             #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
         return indices
@@ -146,10 +153,10 @@ if __name__ == "__main__":
     # Get info about full dataset
     dataset,videos = get_dataset()
 
-    # Make these arguments
-    name = 'Rnd_short'
-    num_cycles = 5
-    num_runs = 3
+    # Get experiment information from FLAGS
+    name = FLAGS.name
+    num_cycles = int(FLAGS.cycles)
+    num_runs = int(FLAGS.runs)
     num_steps = str(train_config.num_steps)
 
     output_file = FLAGS.perf_dir + name + 'r' + str(num_runs) + 'c' + str(num_cycles) + '.json'
@@ -197,6 +204,7 @@ if __name__ == "__main__":
             indices = selectRandomPerVideo(dataset,videos,active_set)
             active_set.extend(indices)
 
+            #Save active_set in train dir in case we want to restart training
             data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '.record'
             save_tf_record(data_info,active_set)
 
@@ -269,7 +277,7 @@ if __name__ == "__main__":
               graph_hook_fn=graph_rewriter_fn)
 
 
-            #### Evaluation of trained model
+            #### Evaluation of trained model on test set to record performance
             eval_dir = train_dir + 'eval/'
 
             # Initialize input dict again (necessary?)
@@ -285,6 +293,8 @@ if __name__ == "__main__":
             # Need to reset graph for evaluation
             tf.reset_default_graph()
 
+
+            #metrics, detected_boxes = evaluator.evaluate(
             metrics = evaluator.evaluate(
               create_eval_input_dict_fn,
               eval_model_fn,
@@ -293,6 +303,8 @@ if __name__ == "__main__":
               train_dir,
               eval_dir,
               graph_hook_fn=graph_rewriter_fn)
+
+            #pdb.set_trace()
 
             aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
 
@@ -303,12 +315,46 @@ if __name__ == "__main__":
             f.write(json_str)
             f.close()
 
+
+            #### Evaluation of trained model on unlabeled set to obtain data
+            # Get unlabeled set
+            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
+            unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+            save_tf_record(data_info,unlabeled_set)
+
+            input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+
+            eval_train_dir = train_dir + 'eval_train/'
+
+            # Initialize input dict again (necessary?)
+            create_eval_input_dict_fn = functools.partial(get_next_eval, input_config)
+
+            graph_rewriter_fn = None
+            if 'graph_rewriter_config' in configs:
+                graph_rewriter_fn = graph_rewriter_builder.build(
+                    configs['graph_rewriter_config'], is_training=False)
+
+            # Need to reset graph for evaluation
+            tf.reset_default_graph()
+
+            metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+              create_eval_input_dict_fn,
+              eval_model_fn,
+              eval_config,
+              categories,
+              train_dir,
+              eval_train_dir,
+              graph_hook_fn=graph_rewriter_fn)
+
+            # Put boxes information somewhere
+
+
             # Update initial model, add latest cycle 
             train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
 
 
 
 
-metrics = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
+#metrics,detected_boxes = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
 
 #trainer.train(create_input_dict_fn, model_fn, train_config, master, task, FLAGS.num_clones, worker_replicas,FLAGS.clone_on_cpu,ps_tasks, worker_job_name,is_chief,train_dir, graph_hook_fn=graph_rewriter_fn)
