@@ -39,7 +39,6 @@ from object_detection.utils import label_map_util
 
 
 flags = tf.app.flags
-#flags.DEFINE_string('data_dir', '', 'Root directory to raw PASCAL VOC dataset.')
 flags.DEFINE_string('set', 'train', 'Convert training set, validation set or '
                     'merged set.')
 flags.DEFINE_string('annotations_dir', 'Annotations',
@@ -171,7 +170,7 @@ def save_tf_record(data_info,indices):
     label_map_dict = label_map_util.get_label_map_dict(data_info['label_map_path'])
 
     logging.info('Reading from ImageNet-VID dataset.')
-    examples_path = os.path.join(data_dir, 'ImageSets', 'VID','AL', data_info['set'] + '.txt')
+    examples_path = os.path.join(data_dir,'AL', data_info['set'] + '.txt')
 
     # Annotations always come from train set now (revisit if we include val)
     annotations_dir = os.path.join(data_dir, data_info['annotations_dir'],'VID','train')

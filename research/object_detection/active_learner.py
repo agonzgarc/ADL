@@ -70,10 +70,9 @@ FLAGS = flags.FLAGS
 # This should be a custom name per method once we can overwrite fields in
 # pipeline_file
 data_info = {'data_dir': FLAGS.data_dir,
-          #'output_path': '/home/abel/DATA/ILSVRC/AL/tfrecords/imagenet_train_active_set.record',
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_ALL'}
+          'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -82,11 +81,11 @@ keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02834778'
 keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 
 
-def get_dataset():
+def get_dataset(data_info):
     dataset = []
+    path_file = os.path.join(data_info['data_dir'],'AL', data_info['set'] + '.txt')
     ################## CAREFUL, short version
     #path_file = FLAGS.data_dir + '/AL/train_ALL_clean_short.txt'
-    path_file = FLAGS.data_dir + '/AL/train_ALL_clean.txt'
     with open(path_file,'r') as pF:
         idx = 0
         for line in pF:
@@ -155,7 +154,7 @@ if __name__ == "__main__":
 
 
     # Get info about full dataset
-    dataset,videos = get_dataset()
+    dataset,videos = get_dataset(data_info)
 
     # Get experiment information from FLAGS
     name = FLAGS.name

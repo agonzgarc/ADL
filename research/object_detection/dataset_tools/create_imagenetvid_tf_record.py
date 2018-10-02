@@ -24,6 +24,7 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
+import pdb
 import hashlib
 import io
 import logging
@@ -94,6 +95,7 @@ def dict_to_tf_example(data,
   if image.format != 'JPEG':
     raise ValueError('Image format not JPEG')
   key = hashlib.sha256(encoded_jpg).hexdigest()
+  encoded_key = key.encode('utf8')
 
   width = int(data['size']['width'])
   height = int(data['size']['height'])
@@ -135,6 +137,7 @@ def dict_to_tf_example(data,
       #truncated.append(int(obj['truncated']))
       #poses.append(obj['pose'].encode('utf8'))
 
+
   example = tf.train.Example(features=tf.train.Features(feature={
       'image/height': dataset_util.int64_feature(height),
       'image/width': dataset_util.int64_feature(width),
@@ -142,7 +145,7 @@ def dict_to_tf_example(data,
           data['filename'].encode('utf8')),
       'image/source_id': dataset_util.bytes_feature(
           data['filename'].encode('utf8')),
-      'image/key/sha256': dataset_util.bytes_feature(key.encode('utf8')),
+      'image/key/sha256': dataset_util.bytes_feature(encoded_key),
       'image/encoded': dataset_util.bytes_feature(encoded_jpg),
       'image/format': dataset_util.bytes_feature('jpeg'.encode('utf8')),
       'image/object/bbox/xmin': dataset_util.float_list_feature(xmin),
@@ -155,7 +158,7 @@ def dict_to_tf_example(data,
       'image/object/truncated': dataset_util.int64_list_feature(truncated),
       'image/object/view': dataset_util.bytes_list_feature(poses),
   }))
-  return example
+  return example, encoded_key
 
 
 def main(_):
@@ -164,6 +167,7 @@ def main(_):
 
     data_dir = FLAGS.data_dir
     writer = tf.python_io.TFRecordWriter(FLAGS.output_path)
+    key_file = open(FLAGS.output_path[:-7]+'_keys.txt','w')
 
     label_map_dict = label_map_util.get_label_map_dict(FLAGS.label_map_path)
 
@@ -190,11 +194,14 @@ def main(_):
       xml = etree.fromstring(xml_str)
       data = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
 
-      tf_example = dict_to_tf_example(data, FLAGS.data_dir, label_map_dict,
+      tf_example,key = dict_to_tf_example(data, FLAGS.data_dir, label_map_dict,
                                       FLAGS.ignore_difficult_instances)
       writer.write(tf_example.SerializeToString())
+      #pdb.set_trace()
+      key_file.write(key.decode('utf8')+'\n')
 
     writer.close()
+    key_file.close()
 
 
 if __name__ == '__main__':

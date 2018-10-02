@@ -90,3 +90,16 @@ ENV/
 
 # PyCharm
 .idea/
+
+# Protos for detection
+research/object_detection/protos/
+
+# Matlab code
+matlab/
+
+# untracked code
+research/object_detection/untracked/
+
+# Bash script for launching experiments
+research/object_detection/experiments.sh
+
