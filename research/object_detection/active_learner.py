@@ -46,7 +46,8 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
                     'Directory to save performance json files.')
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
-flags.DEFINE_string('pipeline_config_path', '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
+flags.DEFINE_string('pipeline_config_path',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
 flags.DEFINE_string('name', 'Rnd_short',
@@ -83,7 +84,8 @@ keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 
 def get_dataset():
     dataset = []
-    path_file = FLAGS.data_dir + '/AL/train_ALL_clean.txt'
+    ################## CAREFUL, short version
+    path_file = FLAGS.data_dir + '/AL/train_ALL_clean_short.txt'
     with open(path_file,'r') as pF:
         idx = 0
         for line in pF:
@@ -147,6 +149,7 @@ if __name__ == "__main__":
     train_config = configs['train_config']
     input_config = configs['train_input_config']
     eval_config = configs['eval_config']
+    eval_train_config = configs['eval_config']
     eval_input_config = configs['eval_input_config']
 
 
@@ -171,7 +174,7 @@ if __name__ == "__main__":
         model_config=model_config,
         is_training=True)
 
-    # We need a different one for testing 
+    # We need a different one for testing
     eval_model_fn = functools.partial(
       model_builder.build,
       model_config=model_config,
@@ -190,11 +193,18 @@ if __name__ == "__main__":
 
     # Run evaluation once only
     eval_config.max_evals = 1
+    eval_train_config.max_evals = 1
+
+    # Save path of pre-trained model
+    pretrained_checkpoint = train_config.fine_tune_checkpoint
 
     for r in range(1,num_runs+1):
 
-        # Active set starts empty 
+        # Active set starts empty
         active_set = []
+
+        # Initial model is pre-trained
+        train_config.fine_tune_checkpoint = pretrained_checkpoint
 
         for cycle in range(1,num_cycles+1):
 
@@ -277,50 +287,14 @@ if __name__ == "__main__":
               graph_hook_fn=graph_rewriter_fn)
 
 
-            #### Evaluation of trained model on test set to record performance
-            eval_dir = train_dir + 'eval/'
-
-            # Initialize input dict again (necessary?)
-            create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
-
-            graph_rewriter_fn = None
-            if 'graph_rewriter_config' in configs:
-                graph_rewriter_fn = graph_rewriter_builder.build(
-                    configs['graph_rewriter_config'], is_training=False)
-
-            #if cycle == 2:
-                #pdb.set_trace()
-            # Need to reset graph for evaluation
-            tf.reset_default_graph()
-
-
-            #metrics, detected_boxes = evaluator.evaluate(
-            metrics = evaluator.evaluate(
-              create_eval_input_dict_fn,
-              eval_model_fn,
-              eval_config,
-              categories,
-              train_dir,
-              eval_dir,
-              graph_hook_fn=graph_rewriter_fn)
-
-            #pdb.set_trace()
-
-            aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
-
-            performances['run'+str(r)+'c'+str(cycle)]= aps
-
-            json_str = json.dumps(performances)
-            f = open(output_file,'w')
-            f.write(json_str)
-            f.close()
-
-
             #### Evaluation of trained model on unlabeled set to obtain data
+
             # Get unlabeled set
             data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
             unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
-            save_tf_record(data_info,unlabeled_set)
+            #save_tf_record(data_info,unlabeled_set)
+
+            print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
 
             input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
@@ -337,16 +311,57 @@ if __name__ == "__main__":
             # Need to reset graph for evaluation
             tf.reset_default_graph()
 
+            # Set number of eval images to number of unlabeled samples
+            #eval_train_config.num_examples = len(unlabeled_set)
+            # In short version, do only 10
+            eval_train_config.num_examples = 10
+
             metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
               create_eval_input_dict_fn,
               eval_model_fn,
-              eval_config,
+              eval_train_config,
               categories,
               train_dir,
               eval_train_dir,
               graph_hook_fn=graph_rewriter_fn)
 
             # Put boxes information somewhere
+            pdb.set_trace()
+
+
+            #### Evaluation of trained model on test set to record performance
+            eval_dir = train_dir + 'eval/'
+
+            # Initialize input dict again (necessary?)
+            create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
+
+            graph_rewriter_fn = None
+            if 'graph_rewriter_config' in configs:
+                graph_rewriter_fn = graph_rewriter_builder.build(
+                    configs['graph_rewriter_config'], is_training=False)
+
+            # Need to reset graph for evaluation
+            tf.reset_default_graph()
+
+
+            metrics = evaluator.evaluate(
+              create_eval_input_dict_fn,
+              eval_model_fn,
+              eval_config,
+              categories,
+              train_dir,
+              eval_dir,
+              graph_hook_fn=graph_rewriter_fn)
+
+            aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+
+            performances['run'+str(r)+'c'+str(cycle)]= aps
+
+            json_str = json.dumps(performances)
+            f = open(output_file,'w')
+            f.write(json_str)
+            f.close()
+
 
 
             # Update initial model, add latest cycle 
