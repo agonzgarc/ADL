@@ -85,7 +85,8 @@ keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 def get_dataset():
     dataset = []
     ################## CAREFUL, short version
-    path_file = FLAGS.data_dir + '/AL/train_ALL_clean_short.txt'
+    #path_file = FLAGS.data_dir + '/AL/train_ALL_clean_short.txt'
+    path_file = FLAGS.data_dir + '/AL/train_ALL_clean.txt'
     with open(path_file,'r') as pF:
         idx = 0
         for line in pF:
@@ -211,7 +212,12 @@ if __name__ == "__main__":
             #### Training of current cycle
             train_dir = FLAGS.train_dir + name + 'run' + str(r) + 'cycle' +  str(cycle) + '/'
 
-            indices = selectRandomPerVideo(dataset,videos,active_set)
+            # For first cycle, use random selection
+            if ('Rnd' in name) or cycle==1:
+                indices = selectRandomPerVideo(dataset,videos,active_set)
+            else:
+                indices = selectEntropyPerVideo(dataset,videos,active_set,detected_boxes)
+
             active_set.extend(indices)
 
             #Save active_set in train dir in case we want to restart training
@@ -289,44 +295,46 @@ if __name__ == "__main__":
 
             #### Evaluation of trained model on unlabeled set to obtain data
 
-            # Get unlabeled set
-            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
-            unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
-            #save_tf_record(data_info,unlabeled_set)
+            if 'Rnd' not in name:
 
-            print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
+                # Get unlabeled set
+                data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
+                unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+                #save_tf_record(data_info,unlabeled_set)
 
-            input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+                print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
 
-            eval_train_dir = train_dir + 'eval_train/'
+                input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
-            # Initialize input dict again (necessary?)
-            create_eval_input_dict_fn = functools.partial(get_next_eval, input_config)
+                eval_train_dir = train_dir + 'eval_train/'
 
-            graph_rewriter_fn = None
-            if 'graph_rewriter_config' in configs:
-                graph_rewriter_fn = graph_rewriter_builder.build(
-                    configs['graph_rewriter_config'], is_training=False)
+                # Initialize input dict again (necessary?)
+                create_eval_input_dict_fn = functools.partial(get_next_eval, input_config)
 
-            # Need to reset graph for evaluation
-            tf.reset_default_graph()
+                graph_rewriter_fn = None
+                if 'graph_rewriter_config' in configs:
+                    graph_rewriter_fn = graph_rewriter_builder.build(
+                        configs['graph_rewriter_config'], is_training=False)
 
-            # Set number of eval images to number of unlabeled samples
-            #eval_train_config.num_examples = len(unlabeled_set)
-            # In short version, do only 10
-            eval_train_config.num_examples = 10
+                # Need to reset graph for evaluation
+                tf.reset_default_graph()
 
-            metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-              create_eval_input_dict_fn,
-              eval_model_fn,
-              eval_train_config,
-              categories,
-              train_dir,
-              eval_train_dir,
-              graph_hook_fn=graph_rewriter_fn)
+                # Set number of eval images to number of unlabeled samples
+                #eval_train_config.num_examples = len(unlabeled_set)
+                # In short version, do only 10
+                eval_train_config.num_examples = 10
 
-            # Put boxes information somewhere
-            pdb.set_trace()
+                metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+                  create_eval_input_dict_fn,
+                  eval_model_fn,
+                  eval_train_config,
+                  categories,
+                  train_dir,
+                  eval_train_dir,
+                  graph_hook_fn=graph_rewriter_fn)
+
+                # Put boxes information somewhere
+                pdb.set_trace()
 
 
             #### Evaluation of trained model on test set to record performance
