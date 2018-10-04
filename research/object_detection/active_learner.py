@@ -430,7 +430,7 @@ if __name__ == "__main__":
 
 
             # Update initial model, add latest cycle 
-            train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
+            # train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
 
 
 
