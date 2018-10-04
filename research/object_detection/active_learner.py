@@ -72,7 +72,7 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_ALL_clean_short'}
+          'set': 'train_ALL_clean'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -351,7 +351,7 @@ if __name__ == "__main__":
             tf.reset_default_graph()
 
 
-            metrics = evaluator.evaluate(
+            metrics,_,_ = evaluator.evaluate(
               create_eval_input_dict_fn,
               eval_model_fn,
               eval_config,
@@ -372,7 +372,7 @@ if __name__ == "__main__":
 
 
             # Update initial model, add latest cycle 
-            train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
+            # train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
 
 
 

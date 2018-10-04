@@ -124,7 +124,7 @@ def _extract_predictions_and_losses(model,
       class_agnostic=(
           fields.DetectionResultFields.detection_classes not in detections),
       scale_to_absolute=True)
-  return result_dict, losses_dict
+  return result_dict, losses_dict, prediction_dict, detections
 
 
 def get_evaluators(eval_config, categories):
@@ -181,13 +181,13 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
     logging.fatal('If ignore_groundtruth=True then an export_path is '
                   'required. Aborting!!!')
 
-  tensor_dict, losses_dict = _extract_predictions_and_losses(
+  tensor_dict, losses_dict, prediction_dict, detections = _extract_predictions_and_losses(
       model=model,
       create_input_dict_fn=create_input_dict_fn,
       ignore_groundtruth=eval_config.ignore_groundtruth)
 
   def _process_batch(tensor_dict, sess, batch_index, counters,
-                     losses_dict=None):
+                     losses_dict=None,prediction_dict=None,detections=None):
     """Evaluates tensors in tensor_dict, losses_dict and visualizes examples.
 
     This function calls sess.run on tensor_dict, evaluating the original_image
@@ -212,7 +212,7 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
     try:
       if not losses_dict:
         losses_dict = {}
-      result_dict, result_losses_dict = sess.run([tensor_dict, losses_dict])
+      result_dict, result_losses_dict, result_prediction_dict, result_detections = sess.run([tensor_dict, losses_dict,prediction_dict, detections])
       counters['success'] += 1
     except tf.errors.InvalidArgumentError:
       logging.info('Skipping image')
@@ -237,7 +237,7 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
           skip_labels=eval_config.skip_labels,
           keep_image_id_for_visualization_export=eval_config.
           keep_image_id_for_visualization_export)
-    return result_dict, result_losses_dict
+    return result_dict, result_losses_dict, result_prediction_dict, result_detections
 
   if graph_hook_fn: graph_hook_fn()
 
@@ -273,6 +273,8 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
       master=eval_config.eval_master,
       save_graph=eval_config.save_graph,
       save_graph_dir=(eval_dir if eval_config.save_graph else ''),
-      losses_dict=losses_dict)
+      losses_dict=losses_dict,
+      prediction_dict=prediction_dict,
+      detections=detections)
 
   return metrics

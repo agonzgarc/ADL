@@ -21,6 +21,9 @@ import time
 import numpy as np
 import tensorflow as tf
 
+from scipy.io import savemat
+
+
 from object_detection.core import box_list
 from object_detection.core import box_list_ops
 from object_detection.core import keypoint_ops
@@ -206,7 +209,9 @@ def _run_checkpoint_once(tensor_dict,
                          master='',
                          save_graph=False,
                          save_graph_dir='',
-                         losses_dict=None):
+                         losses_dict=None,
+                         prediction_dict=None,
+                         detections=None):
   """Evaluates metrics defined in evaluators and returns summaries.
 
   This function loads the latest checkpoint in checkpoint_dirs and evaluates
@@ -293,8 +298,15 @@ def _run_checkpoint_once(tensor_dict,
             counters['skipped'] += 1
             result_dict = {}
         else:
-          result_dict, result_losses_dict = batch_processor(
-              tensor_dict, sess, batch, counters, losses_dict=losses_dict)
+          result_dict, result_losses_dict,result_prediction_dict, result_detections = batch_processor(
+              tensor_dict, sess, batch, counters,
+              losses_dict=losses_dict,prediction_dict=prediction_dict,detections=detections)
+
+        # Select necessary fields from prediction_dict and save it to file
+        #sel_prediction_dict = {key: result_prediction_dict[key] for key in
+                               #{'class_predictions_with_background','proposal_boxes_normalized','refined_box_encodings'}}
+        #sel_prediction_dict['refined_decoded_boxes'] = result_detections['refined_decoded_boxes']
+        #savemat("{}{:05d}.mat".format("/home/abel/DATA/faster_rcnn/resnet101_coco/results_Drp2/im-",batch),sel_prediction_dict)
         if not result_dict:
           continue
         for key, value in iter(result_losses_dict.items()):
@@ -344,7 +356,9 @@ def repeated_checkpoint_run(tensor_dict,
                             master='',
                             save_graph=False,
                             save_graph_dir='',
-                            losses_dict=None):
+                            losses_dict=None,
+                            prediction_dict=None,
+                            detections=None):
   """Periodically evaluates desired tensors using checkpoint_dirs or restore_fn.
 
   This function repeatedly loads a checkpoint and evaluates a desired
@@ -423,7 +437,9 @@ def repeated_checkpoint_run(tensor_dict,
                                                   restore_fn, num_batches,
                                                   master, save_graph,
                                                   save_graph_dir,
-                                                  losses_dict=losses_dict)
+                                                  losses_dict=losses_dict,
+                                                  prediction_dict=prediction_dict,
+                                                  detections=detections)
       write_metrics(metrics, global_step, summary_dir)
     number_of_evaluations += 1
 
