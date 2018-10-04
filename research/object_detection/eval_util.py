@@ -21,6 +21,7 @@ import time
 import numpy as np
 import tensorflow as tf
 
+
 from object_detection.core import box_list
 from object_detection.core import box_list_ops
 from object_detection.core import keypoint_ops
@@ -206,7 +207,9 @@ def _run_checkpoint_once(tensor_dict,
                          master='',
                          save_graph=False,
                          save_graph_dir='',
-                         losses_dict=None):
+                         losses_dict=None,
+                         prediction_dict=None,
+                         detections=None):
   """Evaluates metrics defined in evaluators and returns summaries.
 
   This function loads the latest checkpoint in checkpoint_dirs and evaluates
@@ -293,8 +296,9 @@ def _run_checkpoint_once(tensor_dict,
             counters['skipped'] += 1
             result_dict = {}
         else:
-          result_dict, result_losses_dict = batch_processor(
-              tensor_dict, sess, batch, counters, losses_dict=losses_dict)
+          result_dict, result_losses_dict,result_prediction_dict = batch_processor(
+              tensor_dict, sess, batch, counters, losses_dict=losses_dict,prediction_dict=prediction_dict)
+
         if not result_dict:
           continue
         for key, value in iter(result_losses_dict.items()):
@@ -318,6 +322,7 @@ def _run_checkpoint_once(tensor_dict,
       all_evaluator_metrics = {}
       for evaluator in evaluators:
         metrics = evaluator.evaluate()
+        #detection_boxes = evaluator.get_detected_boxes()
         evaluator.clear()
         if any(key in all_evaluator_metrics for key in metrics):
           raise ValueError('Metric names between evaluators must not collide.')
@@ -326,7 +331,10 @@ def _run_checkpoint_once(tensor_dict,
 
       for key, value in iter(aggregate_result_losses_dict.items()):
         all_evaluator_metrics['Losses/' + key] = np.mean(value)
+
+      #cpwb = result_prediction_dict['class_predictions_with_background']
   sess.close()
+  #return (global_step, all_evaluator_metrics,detection_boxes)
   return (global_step, all_evaluator_metrics)
 
 
@@ -344,7 +352,9 @@ def repeated_checkpoint_run(tensor_dict,
                             master='',
                             save_graph=False,
                             save_graph_dir='',
-                            losses_dict=None):
+                            losses_dict=None,
+                            prediction_dict=None,
+                            detections=None):
   """Periodically evaluates desired tensors using checkpoint_dirs or restore_fn.
 
   This function repeatedly loads a checkpoint and evaluates a desired
@@ -417,13 +427,16 @@ def repeated_checkpoint_run(tensor_dict,
     else:
       last_evaluated_model_path = model_path
       global_step, metrics = _run_checkpoint_once(tensor_dict, evaluators,
+      #global_step, metrics,detection_boxes = _run_checkpoint_once(tensor_dict, evaluators,
                                                   batch_processor,
                                                   checkpoint_dirs,
                                                   variables_to_restore,
                                                   restore_fn, num_batches,
                                                   master, save_graph,
                                                   save_graph_dir,
-                                                  losses_dict=losses_dict)
+                                                  losses_dict=losses_dict,
+                                                  prediction_dict=prediction_dict,
+                                                  detections=detections)
       write_metrics(metrics, global_step, summary_dir)
     number_of_evaluations += 1
 
@@ -435,6 +448,7 @@ def repeated_checkpoint_run(tensor_dict,
     if time_to_next_eval > 0:
       time.sleep(time_to_next_eval)
 
+  #return metrics,detection_boxes
   return metrics
 
 

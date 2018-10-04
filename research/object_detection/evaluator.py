@@ -21,10 +21,14 @@ DetectionModel.
 import logging
 import tensorflow as tf
 
+import pdb
+
 from object_detection import eval_util
+#from object_detection import eval_util_savemat as eval_util
 from object_detection.core import prefetcher
 from object_detection.core import standard_fields as fields
 from object_detection.metrics import coco_evaluation
+#from object_detection.utils import object_detection_evaluation_al as object_detection_evaluation
 from object_detection.utils import object_detection_evaluation
 
 # A dictionary of metric names to classes that implement the metric. The classes
@@ -39,14 +43,10 @@ EVAL_METRICS_CLASS_DICT = {
         object_detection_evaluation.PascalInstanceSegmentationEvaluator,
     'weighted_pascal_voc_instance_segmentation_metrics':
         object_detection_evaluation.WeightedPascalInstanceSegmentationEvaluator,
-    'open_images_V2_detection_metrics':
-        object_detection_evaluation.OpenImagesDetectionEvaluator,
     'coco_detection_metrics':
         coco_evaluation.CocoDetectionEvaluator,
     'coco_mask_metrics':
-        coco_evaluation.CocoMaskEvaluator,
-    'oid_challenge_object_detection_metrics':
-        object_detection_evaluation.OpenImagesDetectionChallengeEvaluator,
+        coco_evaluation.CocoMaskEvaluator
 }
 
 EVAL_DEFAULT_METRIC = 'pascal_voc_detection_metrics'
@@ -124,7 +124,7 @@ def _extract_predictions_and_losses(model,
       class_agnostic=(
           fields.DetectionResultFields.detection_classes not in detections),
       scale_to_absolute=True)
-  return result_dict, losses_dict
+  return result_dict, losses_dict, prediction_dict
 
 
 def get_evaluators(eval_config, categories):
@@ -181,13 +181,13 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
     logging.fatal('If ignore_groundtruth=True then an export_path is '
                   'required. Aborting!!!')
 
-  tensor_dict, losses_dict = _extract_predictions_and_losses(
+  tensor_dict, losses_dict, prediction_dict= _extract_predictions_and_losses(
       model=model,
       create_input_dict_fn=create_input_dict_fn,
       ignore_groundtruth=eval_config.ignore_groundtruth)
 
   def _process_batch(tensor_dict, sess, batch_index, counters,
-                     losses_dict=None):
+                     losses_dict=None,prediction_dict=None,detections=None):
     """Evaluates tensors in tensor_dict, losses_dict and visualizes examples.
 
     This function calls sess.run on tensor_dict, evaluating the original_image
@@ -212,7 +212,8 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
     try:
       if not losses_dict:
         losses_dict = {}
-      result_dict, result_losses_dict = sess.run([tensor_dict, losses_dict])
+      result_dict, result_losses_dict, result_prediction_dict = sess.run([tensor_dict, losses_dict,prediction_dict])
+      #pdb.set_trace()
       counters['success'] += 1
     except tf.errors.InvalidArgumentError:
       logging.info('Skipping image')
@@ -237,7 +238,7 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
           skip_labels=eval_config.skip_labels,
           keep_image_id_for_visualization_export=eval_config.
           keep_image_id_for_visualization_export)
-    return result_dict, result_losses_dict
+    return result_dict, result_losses_dict, result_prediction_dict
 
   if graph_hook_fn: graph_hook_fn()
 
@@ -257,6 +258,7 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
   if not evaluator_list:
     evaluator_list = get_evaluators(eval_config, categories)
 
+  #metrics,detection_boxes = eval_util.repeated_checkpoint_run(
   metrics = eval_util.repeated_checkpoint_run(
       tensor_dict=tensor_dict,
       summary_dir=eval_dir,
@@ -273,6 +275,8 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
       master=eval_config.eval_master,
       save_graph=eval_config.save_graph,
       save_graph_dir=(eval_dir if eval_config.save_graph else ''),
-      losses_dict=losses_dict)
+      losses_dict=losses_dict,
+      prediction_dict=prediction_dict)
 
+  #return metrics,detection_boxes
   return metrics
