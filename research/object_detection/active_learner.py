@@ -9,6 +9,7 @@ MORE DETAILS
 
 import pdb
 import random
+import numpy as np
 
 import functools
 import json
@@ -47,10 +48,10 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'Rnd_short',
+flags.DEFINE_string('name', 'Ent',
                     'Name of method to run')
 flags.DEFINE_string('cycles','10',
                     'Number of cycles')
@@ -72,7 +73,7 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_ALL_clean_short'}
+          'set': 'train_ALL_clean'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -84,8 +85,6 @@ keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 def get_dataset(data_info):
     dataset = []
     path_file = os.path.join(data_info['data_dir'],'AL', data_info['set'] + '.txt')
-    ################## CAREFUL, short version
-    #path_file = FLAGS.data_dir + '/AL/train_ALL_clean_short.txt'
     with open(path_file,'r') as pF:
         idx = 0
         for line in pF:
@@ -114,6 +113,62 @@ def selectRandomPerVideo(dataset,videos,active_set):
             # If all frames of video are in active set, ignore video
             if len(frames) > 0:
                 idxR = random.randint(0,len(frames)-1)
+                indices.append(frames[idxR])
+            #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
+        return indices
+
+def computeEntropy(predictions):
+    """ Given a list of predictions (class scores with background), it computes
+    the entropy of each prediction in the list
+    Args:
+        predictions: list of predictions. Each element corresponds to an image,
+            containing a numpy nd array of shape (num windows, num_classes+1)
+    Returns:
+        entropies: list of the same dimension, each item is the summary entropy
+            for the corresponding image
+    """
+    # Add more summary measures
+
+    def softmax_pred(x):
+        e = np.exp(x)
+        return e/np.sum(e,axis=1,keepdims=True)
+
+    def entropy(x):
+        return np.sum(-x*np.log(x),axis=1)
+
+    entropies = [np.max(entropy(softmax_pred(i))) for i in predictions]
+
+    return entropies
+
+def selectEntropyPerVideo(dataset,videos,active_set,detections):
+
+        indices = []
+
+        # We have detections only for the labeled dataset, be careful with indexing
+        unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+
+        predictions = detections['scores_with_background']
+
+        num_classes = 3+1
+
+        for v in videos:
+
+            # Select frames in current video
+            frames = [f['idx'] for f in dataset if f['video'] == v and f['verified']]
+
+            # Get only those that are not labeled
+            frames = [f for f in frames if f in unlabeled_set]
+
+            # If all frames of video are in active set, ignore video
+            if len(frames) > 0:
+                # Extract corresponding predictions
+                det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+
+                # Compute and summarize entropy
+                ent = np.array(computeEntropy(det_frames))
+
+                #idxR = random.randint(0,len(frames)-1)
+                idxR = ent.argmax(0)
                 indices.append(frames[idxR])
             #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
         return indices
@@ -299,7 +354,10 @@ if __name__ == "__main__":
                 # Get unlabeled set
                 data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
                 unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
-                #save_tf_record(data_info,unlabeled_set)
+
+                # Short version, only save a subset
+                #unlabeled_set = unlabeled_set[:100]
+                save_tf_record(data_info,unlabeled_set)
 
                 print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
 
@@ -319,9 +377,7 @@ if __name__ == "__main__":
                 tf.reset_default_graph()
 
                 # Set number of eval images to number of unlabeled samples
-                #eval_train_config.num_examples = len(unlabeled_set)
-                # In short version, do only 10
-                eval_train_config.num_examples = 10
+                eval_train_config.num_examples = len(unlabeled_set)
 
                 metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
                   create_eval_input_dict_fn,
@@ -333,7 +389,7 @@ if __name__ == "__main__":
                   graph_hook_fn=graph_rewriter_fn)
 
                 # Put boxes information somewhere
-                pdb.set_trace()
+                #pdb.set_trace()
 
 
             #### Evaluation of trained model on test set to record performance
@@ -351,7 +407,7 @@ if __name__ == "__main__":
             tf.reset_default_graph()
 
 
-            metrics = evaluator.evaluate(
+            metrics,_,_ = evaluator.evaluate(
               create_eval_input_dict_fn,
               eval_model_fn,
               eval_config,
@@ -359,6 +415,8 @@ if __name__ == "__main__":
               train_dir,
               eval_dir,
               graph_hook_fn=graph_rewriter_fn)
+
+            #pdb.set_trace()
 
             aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
 
@@ -377,6 +435,6 @@ if __name__ == "__main__":
 
 
 
-#metrics,detected_boxes = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
+metrics,_,_ = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
 
 #trainer.train(create_input_dict_fn, model_fn, train_config, master, task, FLAGS.num_clones, worker_replicas,FLAGS.clone_on_cpu,ps_tasks, worker_job_name,is_chief,train_dir, graph_hook_fn=graph_rewriter_fn)
