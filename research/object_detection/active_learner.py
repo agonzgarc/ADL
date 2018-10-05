@@ -48,10 +48,10 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'Ent',
+flags.DEFINE_string('name', 'RndNeigh_short',
                     'Name of method to run')
 flags.DEFINE_string('cycles','10',
                     'Number of cycles')
@@ -83,6 +83,15 @@ keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 
 
 def get_dataset(data_info):
+    """ Gathers information about the dataset given and stores it in a
+    structure at the frame level.
+    Args:
+        data_info: dictionary with information about the dataset
+    Returns:
+        dataset: structure in form of list, each element corresponds to a
+            frame and its a dictionary with multiple keys
+        videos: list of videos
+    """
     dataset = []
     path_file = os.path.join(data_info['data_dir'],'AL', data_info['set'] + '.txt')
     with open(path_file,'r') as pF:
@@ -101,23 +110,64 @@ def get_dataset(data_info):
     videos = set([d['video'] for d in dataset])
     return dataset,videos
 
-def selectRandomPerVideo(dataset,videos,active_set):
-        indices = []
-        for v in videos:
-            #Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v and f['verified'] ]
+def augment_active_set(dataset,videos,active_set,num_neighbors=5):
+    """ Augment set of indices in active_set by adding a given number of neighbors
+    Arg:
+        dataset: structure with information about each frames
+        videos: list of video names
+        active_set: list of indices of active_set
+        num_neighbors: number of neighbors to include
+    Returns:
+        aug_active_set: augmented list of indices with neighbors
+    """
+    aug_active_set = []
 
-            # Remove if already in active set
-            frames = [f for f in frames if f not in active_set]
+    # We need to do this per video to keep limits in check
+    for v in videos:
+        frames_video = [f['idx'] for f in dataset if f['video'] == v]
+        max_frame = np.max(frames_video)
+        idx_videos_active_set = [idx for idx in frames_video if idx in active_set]
+        idx_with_neighbors = [i for idx in idx_videos_active_set for i in range(idx-num_neighbors,idx+num_neighbors+1) if i >= 0 and i
+         <= max_frame ]
+        aug_active_set.extend(idx_with_neighbors)
 
-            # If all frames of video are in active set, ignore video
-            if len(frames) > 0:
-                idxR = random.randint(0,len(frames)-1)
-                indices.append(frames[idxR])
-            #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
-        return indices
+    return aug_active_set
 
-def computeEntropy(predictions):
+
+def select_random_video(dataset,videos,active_set):
+    """ Select a random frame from each video
+    Arg:
+        dataset: structure with information about each frame
+        videos: list of video names
+        active_set: list of indices of active_set
+    Returns:
+        indices: new indices to be added to active_set
+    """
+
+    if active_set:
+        # Temporarily add neighbors to active_set so they are ignored
+        aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
+    else:
+        aug_active_set = active_set
+
+    indices = []
+    for v in videos:
+        #Select frames in current video
+        frames = [f['idx'] for f in dataset if f['video'] == v and f['verified'] ]
+
+        # Remove if already in active set
+        #frames = [f for f in frames if f not in active_set]
+        # or closer than 5 frames from active set
+        frames = [f for f in frames if f not in aug_active_set]
+
+        # If all frames of video are in active set, ignore video
+        if len(frames) > 0:
+            idxR = random.randint(0,len(frames)-1)
+            indices.append(frames[idxR])
+        #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
+    return indices
+
+def compute_entropy(predictions):
     """ Given a list of predictions (class scores with background), it computes
     the entropy of each prediction in the list
     Args:
@@ -127,7 +177,7 @@ def computeEntropy(predictions):
         entropies: list of the same dimension, each item is the summary entropy
             for the corresponding image
     """
-    # Add more summary measures
+    # Add more summary measures, now we only have max
 
     def softmax_pred(x):
         e = np.exp(x)
@@ -140,7 +190,7 @@ def computeEntropy(predictions):
 
     return entropies
 
-def selectEntropyPerVideo(dataset,videos,active_set,detections):
+def select_entropy_video(dataset,videos,active_set,detections):
 
         indices = []
 
@@ -165,7 +215,7 @@ def selectEntropyPerVideo(dataset,videos,active_set,detections):
                 det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
 
                 # Compute and summarize entropy
-                ent = np.array(computeEntropy(det_frames))
+                ent = np.array(compute_entropy(det_frames))
 
                 #idxR = random.randint(0,len(frames)-1)
                 idxR = ent.argmax(0)
@@ -268,13 +318,12 @@ if __name__ == "__main__":
 
             # For first cycle, use random selection
             if ('Rnd' in name) or cycle==1:
-                indices = selectRandomPerVideo(dataset,videos,active_set)
+                indices = select_random_video(dataset,videos,active_set)
             else:
-                indices = selectEntropyPerVideo(dataset,videos,active_set,detected_boxes)
+                indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
 
             active_set.extend(indices)
 
-            #Save active_set in train dir in case we want to restart training
             data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '.record'
             save_tf_record(data_info,active_set)
 
@@ -346,13 +395,19 @@ if __name__ == "__main__":
               train_dir,
               graph_hook_fn=graph_rewriter_fn)
 
+            #Save active_set in train dir in case we want to restart training
+            with open(train_dir + 'active_set.txt', 'w') as f:
+                for item in active_set:
+                    f.write('{}\n'.format(item))
 
             #### Evaluation of trained model on unlabeled set to obtain data
 
             if 'Rnd' not in name:
 
-                # Get unlabeled set
+               # Get unlabeled set
                 data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
+
+                # Remove those with wrong annotations, save some time
                 unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
 
                 # Short version, only save a subset
@@ -365,8 +420,12 @@ if __name__ == "__main__":
 
                 eval_train_dir = train_dir + 'eval_train/'
 
+                def get_next_eval_train(config):
+                   return dataset_builder.make_initializable_iterator(
+                        dataset_builder.build(config)).get_next()
+
                 # Initialize input dict again (necessary?)
-                create_eval_input_dict_fn = functools.partial(get_next_eval, input_config)
+                create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, input_config)
 
                 graph_rewriter_fn = None
                 if 'graph_rewriter_config' in configs:
@@ -380,7 +439,7 @@ if __name__ == "__main__":
                 eval_train_config.num_examples = len(unlabeled_set)
 
                 metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-                  create_eval_input_dict_fn,
+                  create_eval_train_input_dict_fn,
                   eval_model_fn,
                   eval_train_config,
                   categories,
@@ -391,9 +450,16 @@ if __name__ == "__main__":
                 # Put boxes information somewhere
                 #pdb.set_trace()
 
+                print('Done computing detections in training set')
+
 
             #### Evaluation of trained model on test set to record performance
             eval_dir = train_dir + 'eval/'
+
+            # Input dict function for eval is always the same
+            def get_next_eval(config):
+               return dataset_builder.make_initializable_iterator(
+                   dataset_builder.build(config)).get_next()
 
             # Initialize input dict again (necessary?)
             create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
@@ -406,6 +472,7 @@ if __name__ == "__main__":
             # Need to reset graph for evaluation
             tf.reset_default_graph()
 
+            pdb.set_trace()
 
             metrics,_,_ = evaluator.evaluate(
               create_eval_input_dict_fn,
@@ -416,9 +483,9 @@ if __name__ == "__main__":
               eval_dir,
               graph_hook_fn=graph_rewriter_fn)
 
-            #pdb.set_trace()
 
             aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+
 
             performances['run'+str(r)+'c'+str(cycle)]= aps
 
