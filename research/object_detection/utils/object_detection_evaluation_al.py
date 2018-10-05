@@ -674,7 +674,6 @@ class ObjectDetectionEvaluationAL(object):
 
 
   def get_detections(self):
-      print("RETURNING boxes")
       return {'boxes': self.detected_boxes,
               'labels':self.detected_class_labels, 'scores': self.detected_scores,
               'scores_with_background': self.detected_scores_with_background}

@@ -48,10 +48,10 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'RndNeigh_short',
+flags.DEFINE_string('name', 'Ent',
                     'Name of method to run')
 flags.DEFINE_string('cycles','10',
                     'Number of cycles')
@@ -254,9 +254,10 @@ if __name__ == "__main__":
     train_config = configs['train_config']
     input_config = configs['train_input_config']
     eval_config = configs['eval_config']
-    eval_train_config = configs['eval_config']
     eval_input_config = configs['eval_input_config']
 
+    # Save number of test frames, as config is modified with unlabeled set
+    num_eval_frames = eval_config.num_examples
 
     # Get info about full dataset
     dataset,videos = get_dataset(data_info)
@@ -268,7 +269,6 @@ if __name__ == "__main__":
     num_steps = str(train_config.num_steps)
 
     output_file = FLAGS.perf_dir + name + 'r' + str(num_runs) + 'c' + str(num_cycles) + '.json'
-
 
     # Dictionary to save performance of every run
     performances = {}
@@ -298,7 +298,6 @@ if __name__ == "__main__":
 
     # Run evaluation once only
     eval_config.max_evals = 1
-    eval_train_config.max_evals = 1
 
     # Save path of pre-trained model
     pretrained_checkpoint = train_config.fine_tune_checkpoint
@@ -401,7 +400,6 @@ if __name__ == "__main__":
                     f.write('{}\n'.format(item))
 
             #### Evaluation of trained model on unlabeled set to obtain data
-
             if 'Rnd' not in name:
 
                # Get unlabeled set
@@ -436,12 +434,13 @@ if __name__ == "__main__":
                 tf.reset_default_graph()
 
                 # Set number of eval images to number of unlabeled samples
-                eval_train_config.num_examples = len(unlabeled_set)
+                eval_config.num_examples = len(unlabeled_set)
+
 
                 metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
                   create_eval_train_input_dict_fn,
                   eval_model_fn,
-                  eval_train_config,
+                  eval_config,
                   categories,
                   train_dir,
                   eval_train_dir,
@@ -461,6 +460,8 @@ if __name__ == "__main__":
                return dataset_builder.make_initializable_iterator(
                    dataset_builder.build(config)).get_next()
 
+            eval_config.num_examples = num_eval_frames
+
             # Initialize input dict again (necessary?)
             create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
 
@@ -471,8 +472,6 @@ if __name__ == "__main__":
 
             # Need to reset graph for evaluation
             tf.reset_default_graph()
-
-            pdb.set_trace()
 
             metrics,_,_ = evaluator.evaluate(
               create_eval_input_dict_fn,
@@ -496,12 +495,12 @@ if __name__ == "__main__":
 
 
 
-            # Update initial model, add latest cycle 
-            train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
+            # Update initial model, add latest cycle
+            #train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
 
 
 
 
-metrics,_,_ = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
+#metrics,_,_ = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
 
 #trainer.train(create_input_dict_fn, model_fn, train_config, master, task, FLAGS.num_clones, worker_replicas,FLAGS.clone_on_cpu,ps_tasks, worker_job_name,is_chief,train_dir, graph_hook_fn=graph_rewriter_fn)
