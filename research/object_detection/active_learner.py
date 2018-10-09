@@ -25,8 +25,6 @@ from object_detection.builders import model_builder
 from object_detection.utils import config_util
 from object_detection.save_subset_imagenetvid_tf_record import save_tf_record
 from object_detection.utils import label_map_util
-from object_detection.track_detections import track_detection
-from object_detection.utils import iou
 
 from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
@@ -318,10 +316,10 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
 
             pdb.set_trace()
 
-            curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
-            im_w,im_h = curr_im.size
-            vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_frame,im_w,im_h))
-            curr_im.show()
+            #curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
+            #im_w,im_h = curr_im.size
+            #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_frame,im_w,im_h))
+            #curr_im.show()
 
             # Get surviving detections in frame
             idx_good_det = scores_frame > thresh_detection
@@ -597,7 +595,7 @@ if __name__ == "__main__":
                 unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
 
                 # Short version, only save a subset
-                unlabeled_set = unlabeled_set[:100]
+                #unlabeled_set = unlabeled_set[:100]
 
                 save_tf_record(data_info,unlabeled_set)
 
