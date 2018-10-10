@@ -59,8 +59,8 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
+                    #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
 flags.DEFINE_string('name', 'TCFPshort',
@@ -85,8 +85,8 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          #'set': 'train_ALL_clean'}
-          'set': 'train_ALL_clean_short'}
+          'set': 'train_ALL_clean'}
+          #'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -257,6 +257,13 @@ def normalize_box(box,w,h):
     nbox[:,3] = nbox[:,3]/w
     return nbox
 
+def filter_detections(boxes,scores,labels):
+
+    idx_good_det = scores > thresh_detections
+    return boxes[idx_good_det,:],scores[idx_good_det],labels[idx_good_det]
+
+
+
 def track_detections(dataset,videos,active_set,detections,groundtruths):
 
     thresh_detection = 0.5
@@ -284,6 +291,10 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
     detected_scores = detections['scores']
     detected_labels = detections['labels']
 
+    # Get only top detections
+    for i in range(len(detected_boxes)):
+        detected_boxes[i],detected_scores[i],detected_labels[i] = filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
+
     gt_boxes = groundtruths['boxes']
 
     for v in videos:
@@ -292,7 +303,9 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
 
         # Select frames in current video (even those with wrong GTs)
         #frames = [f['filename'] for f in dataset if f['video'] == v]
-        frames = [[f['idx'],f['filename']] for f in dataset if f['video'] == v and f['verified']]
+        #frames = [[f['idx'],f['filename']] for f in dataset if f['video'] == v and f['verified']]
+        # REMOVE NON-VERIFIED FRAMES
+        frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
 
         # Get maximium index of frames in video
         max_frame = np.max([f[0] for f in frames])
@@ -322,15 +335,14 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
             #curr_im.show()
 
             # Get surviving detections in frame
-            idx_good_det = scores_frame > thresh_detection
+            #idx_good_det = scores_frame > thresh_detection
 
-            boxes_frame = boxes_frame[idx_good_det,:]
-            labels_frame = labels_frame[idx_good_det]
+            #boxes_frame = boxes_frame[idx_good_det,:]
+            #labels_frame = labels_frame[idx_good_det]
 
             num_good_dets = labels_frame.shape[0]
 
             for idx_det in range(num_good_dets):
-
 
                 # Visualize detection
                 #curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
@@ -343,14 +355,21 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
                 # Forward frames in the video
                 # I can't do this with list comprehension for some reason
                 #frame_list = [frames[i] for i in range(idx_frame_video+1,idx_frame_video+4) if frames[i] in frames]
+
+                detections_neighbors = []
                 frame_list = [os.path.join(video_dir,frames[idx_frame_video][1])]
                 for t in range(1,10):
-                    if idx_frame_video+t <= max_frame:
-                        frame_list.append(os.path.join(video_dir,frames[idx_frame_video+t][1]))
+                    idx_neighbor = idx_frame_video+t
+                    if idx_neighbor <= max_frame:
+                        frame_list.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                        # Take only those of the current class
+                        detections_neighbors.append(detected_boxes[idx_neighbor][detected_class[idx_neighbor] == labels_frame[idx_det]])
+
 
                 pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
                 pdb.set_trace()
                 bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
+
 
 
             for t in range(1,4):
@@ -650,7 +669,6 @@ if __name__ == "__main__":
             # Restore eval configuration on test
             eval_config.num_examples = num_eval_frames
             eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
-            eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
             # Initialize input dict again (necessary?)
             create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
