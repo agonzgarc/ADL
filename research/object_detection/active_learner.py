@@ -69,14 +69,15 @@ flags.DEFINE_string('pipeline_config_path',
                     #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'TCFP-3TrVideoShort',
+#flags.DEFINE_string('name', 'TCFP-3TrVideoShort',
+flags.DEFINE_string('name', 'Full',
                     'Name of method to run')
 flags.DEFINE_string('cycles','10',
                     'Number of cycles')
 flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
 flags.DEFINE_string('run','1',
-                    'Number of runs for each experiment')
+                    'Number of current run')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -154,7 +155,7 @@ def augment_active_set(dataset,videos,active_set,num_neighbors=5):
     return aug_active_set
 
 def select_full_dataset(dataset):
-    indices = [f['idx'] for f in datset if f['verified']]
+    indices = [f['idx'] for f in dataset if f['verified']]
     return indices
 
 def select_random_video(dataset,videos,active_set):
@@ -644,7 +645,6 @@ if __name__ == "__main__":
 
     for cycle in range(first_cycle,num_cycles+1):
 
-        pdb.set_trace()
         # Skip first training if restarting training from cycle
         if restart:
             # Now set restart flag to false
@@ -655,7 +655,10 @@ if __name__ == "__main__":
 
             # For first cycle, use random selection
             if ('Rnd' in name) or cycle==1:
-                indices = select_random_video(dataset,videos,active_set)
+                if ('Full' in name):
+                    indices = select_full_dataset(dataset)
+                else:
+                    indices = select_random_video(dataset,videos,active_set)
             else:
                 if ('Ent' in name):
                     indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
