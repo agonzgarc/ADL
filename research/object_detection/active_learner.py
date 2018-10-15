@@ -25,19 +25,24 @@ from object_detection.builders import model_builder
 from object_detection.utils import config_util
 from object_detection.save_subset_imagenetvid_tf_record import save_tf_record
 from object_detection.utils import label_map_util
+from object_detection.utils import np_box_ops
+from object_detection.utils import np_box_list
+from object_detection.utils import np_box_list_ops
+
+from pycocotools import mask
 
 from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
 
 # Tracking module
 import siamfc.siamese as siam
-from siamfc.tracker import tracker
+from siamfc.tracker import tracker_full_video
 from siamfc.parse_arguments import parse_arguments
 from siamfc.region_to_bbox import region_to_bbox
 
 
-tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.set_verbosity(tf.logging.INFO)
+#tf.logging.set_verbosity(tf.logging.INFO)
+tf.logging.set_verbosity(tf.logging.WARN)
 
 flags = tf.app.flags
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -59,15 +64,17 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
-                    #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
+                    #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'TCFPshort',
+flags.DEFINE_string('name', 'TCFP-3TrVideoShort',
                     'Name of method to run')
 flags.DEFINE_string('cycles','10',
                     'Number of cycles')
-flags.DEFINE_string('runs','3',
+flags.DEFINE_string('restart_from_cycle','0',
+                    'Cycle from which we want to restart training, if any')
+flags.DEFINE_string('run','1',
                     'Number of runs for each experiment')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
@@ -79,14 +86,13 @@ flags.DEFINE_string('model_config_path', '',
 FLAGS = flags.FLAGS
 
 
-
 # This should be a custom name per method once we can overwrite fields in
 # pipeline_file
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_ALL_clean'}
-          #'set': 'train_ALL_clean_short'}
+          #'set': 'train_150K_clean'}
+          'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -146,6 +152,9 @@ def augment_active_set(dataset,videos,active_set,num_neighbors=5):
 
     return aug_active_set
 
+def select_full_dataset(dataset):
+    indices = [f['idx'] for f in datset if f['verified']]
+    return indices
 
 def select_random_video(dataset,videos,active_set):
     """ Select a random frame from each video
@@ -157,11 +166,12 @@ def select_random_video(dataset,videos,active_set):
         indices: new indices to be added to active_set
     """
 
-    if active_set:
-        # Temporarily add neighbors to active_set so they are ignored
-        aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
-    else:
-        aug_active_set = active_set
+    #if active_set:
+        ## Temporarily add neighbors to active_set so they are ignored
+        #aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
+    #else:
+        #aug_active_set = active_set
+    aug_active_set = active_set
 
     indices = []
     for v in videos:
@@ -245,6 +255,12 @@ def convert_boxes_wh(box):
     whbox = np.array([box[1],box[0],box[3]-box[1],box[2]-box[0]])
     return whbox
 
+def convert_boxes_xy(box):
+    """ Tracking results come as [x, y, w, h]
+        Convert back to the API's [ymin,xmin,ymax,xmax]
+    """
+    return np.array([box[1],box[0],box[1]+box[3],box[0]+box[2]])
+
 
 def normalize_box(box,w,h):
     """ Input: [ymin, xmin,ymax,xmax]
@@ -257,39 +273,46 @@ def normalize_box(box,w,h):
     nbox[:,3] = nbox[:,3]/w
     return nbox
 
-def filter_detections(boxes,scores,labels):
+def filter_detections(boxes,scores,labels,thresh_detection = 0.5):
 
-    idx_good_det = scores > thresh_detections
+    idx_good_det = scores > thresh_detection
     return boxes[idx_good_det,:],scores[idx_good_det],labels[idx_good_det]
 
+#def nms_detections(boxes,scores,labels,thresh_nms = 0.8):
+    #boxlist = np_box_list.BoxList(boxes)
+    #boxlist.add_field('scores',scores)
 
 
 def track_detections(dataset,videos,active_set,detections,groundtruths):
 
-    thresh_detection = 0.5
+    # Selector configuration
+    threshold_track = 0.7
+    num_frames_to_track = 3
 
     # Tracker configuration
     hp, evaluation, run, env, design = parse_arguments()
 
     final_score_sz = hp.response_up * (design.score_sz - 1) + 1
 
-
-    # Reload module so element are in current graph, look for a better solution to this
+    # Reload module so elements are in current graph, look for a better solution to this
     tf.reset_default_graph()
     imp.reload(siam)
 
-    #gtrack = tf.Graph()
-    #with gtrack.as_default() as gtr:
-        #with gtr.name_scope("gtrack"):
     filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)
 
-    # We have detections only for the labeled dataset, be careful with indexing
+    # We have detections only for the unlabeled dataset, be careful with indexing
     unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+
+    total_frames = len([f for f in dataset if f['idx'] in unlabeled_set and f['verified']])
+    overall_frame_counter = 0
 
     # ARE DETECTIONS NMSed?
     detected_boxes = detections['boxes']
     detected_scores = detections['scores']
     detected_labels = detections['labels']
+
+    indices = []
+    elapsed_time = []
 
     # Get only top detections
     for i in range(len(detected_boxes)):
@@ -302,106 +325,202 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
         video_dir = os.path.join(FLAGS.data_dir,'Data','VID','train',v)
 
         # Select frames in current video (even those with wrong GTs)
-        #frames = [f['filename'] for f in dataset if f['video'] == v]
-        #frames = [[f['idx'],f['filename']] for f in dataset if f['video'] == v and f['verified']]
-        # REMOVE NON-VERIFIED FRAMES
         frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
 
         # Get maximium index of frames in video
-        max_frame = np.max([f[0] for f in frames])
+        idx_all_frames_video = [f[0] for f in frames]
+        max_frame = np.max(idx_all_frames_video)
 
-        # Get only those that are not labeled --> pick from these
-        frames_unlabeled = [f for f in frames if f[0] in unlabeled_set]
+        # Get only those that are not labeled and verified --> pick from these
+        frames_unlabeled = [f for f in frames if f[0] in unlabeled_set and f[2]]
 
-        tc_sum = np.zeros(len(frames_unlabeled))
-        tc_contrib = np.zeros(len(frames_unlabeled))
+        frame_counter = 0
+
+        frame_list_video = []
+        pos_x_video = []
+        pos_y_video = []
+        target_w_video = []
+        target_h_video = []
+
+        num_good_dets_video = []
+
+        detections_neighbors_video = []
 
         for fu in frames_unlabeled:
 
-            idx_frame_video = [f[0] for f in frames].index(fu[0])
+            idx_frame_video = idx_all_frames_video.index(fu[0])
+
+            frame_counter += 1
+            overall_frame_counter += 1
+
+            #print("Processing frame {}/{} with total idx:{}, video idx {}".format(frame_counter+1,len(frames_unlabeled),fu[0],idx_frame_video))
+            print("Adding information about frame in video: {}/{}, overall: {}/{}".format(frame_counter,len(frames_unlabeled),overall_frame_counter, total_frames))
+
+            # ASSUMPTION: for TCFP, we have detections for the whole dataset
 
             # Get boxes for current frame
-            boxes_frame = detected_boxes[unlabeled_set.index(fu[0])]
-            scores_frame = detected_scores[unlabeled_set.index(fu[0])]
-            labels_frame = detected_labels[unlabeled_set.index(fu[0])]
+            boxes_frame = detected_boxes[fu[0]]
+            scores_frame = detected_scores[fu[0]]
+            labels_frame = detected_labels[fu[0]]
 
-            gt_frame = gt_boxes[unlabeled_set.index(fu[0])]
+            gt_frame = gt_boxes[fu[0]]
 
-            pdb.set_trace()
-
+            ## Visualization of frame's GT and detections
             #curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
             #im_w,im_h = curr_im.size
             #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_frame,im_w,im_h))
+            #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes_frame[:50,:],im_w,im_h),color='green')
             #curr_im.show()
-
-            # Get surviving detections in frame
-            #idx_good_det = scores_frame > thresh_detection
-
-            #boxes_frame = boxes_frame[idx_good_det,:]
-            #labels_frame = labels_frame[idx_good_det]
 
             num_good_dets = labels_frame.shape[0]
 
+            num_good_dets_video.append(num_good_dets)
+
             for idx_det in range(num_good_dets):
 
-                # Visualize detection
-                #curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
-
-                #vis_utils.visualize_boxes_and_labels_on_image_array(numpy.array(curr_im),boxes_frame[idx_det])
-
-                # Convert [x y x y] to [y x w h]
+                ###### Common part for forward and backward tracking
+                # Convert [y x y x] to [y x w h]
                 curr_box = convert_boxes_wh(boxes_frame[idx_det])
+                pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
 
-                # Forward frames in the video
+                # Append them twice, forward and backward
+                pos_x_video.append(pos_x)
+                pos_x_video.append(pos_x)
+                pos_y_video.append(pos_y)
+                pos_y_video.append(pos_y)
+                target_w_video.append(target_w)
+                target_w_video.append(target_w)
+                target_h_video.append(target_h)
+                target_h_video.append(target_h)
+
+
+                ###### Forward part
+                detections_neighbors = []
+                frame_list = [os.path.join(video_dir,frames[idx_frame_video][1])]
+
                 # I can't do this with list comprehension for some reason
                 #frame_list = [frames[i] for i in range(idx_frame_video+1,idx_frame_video+4) if frames[i] in frames]
 
-                detections_neighbors = []
-                frame_list = [os.path.join(video_dir,frames[idx_frame_video][1])]
-                for t in range(1,10):
+                for t in range(1,num_frames_to_track+1):
                     idx_neighbor = idx_frame_video+t
-                    if idx_neighbor <= max_frame:
+
+                    # Check if neighbor still in video
+                    if idx_neighbor < len(frames):
                         frame_list.append(os.path.join(video_dir,frames[idx_neighbor][1]))
                         # Take only those of the current class
-                        detections_neighbors.append(detected_boxes[idx_neighbor][detected_class[idx_neighbor] == labels_frame[idx_det]])
+                        detections_neighbors.append(detected_boxes[fu[0]+t][detected_labels[fu[0]+t] == labels_frame[idx_det]])
+
+                frame_list_video.append(frame_list)
+                detections_neighbors_video.append(detections_neighbors)
+
+                #bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
+
+                ###### Backward part
+                detections_neighbors = []
+                frame_list = [os.path.join(video_dir,frames[idx_frame_video][1])]
+
+                for t in range(1,num_frames_to_track+1):
+                    idx_neighbor = idx_frame_video-t
+                    if idx_neighbor >= 0:
+                        frame_list.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                        # Take only those of the current class
+                        detections_neighbors.append(detected_boxes[fu[0]-t][detected_labels[fu[0]-t] == labels_frame[idx_det]])
+
+                frame_list_video.append(frame_list)
+                detections_neighbors_video.append(detections_neighbors)
+                #bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
 
 
-                pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
-                pdb.set_trace()
-                bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
 
 
+        # Track ALL frames and all detections in video with one call
+        bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video,
+                       pos_y_video, target_w_video, target_h_video, final_score_sz, filename, image, templates_z, scores)
 
-            for t in range(1,4):
-                if idx_frame_video+t <= max_frame:
-                    iou = tracked_boxes[t]
+        elapsed_time.append(elapsed_time_video)
+
+        # Computation of TC-FP score
+        frame_counter = 0
+
+        tc_scores = np.zeros(len(frames_unlabeled))
+
+        for fu in frames_unlabeled:
+
+            num_good_dets = num_good_dets_video[frame_counter]
+
+            tc_sum_frame = np.zeros(num_good_dets)
+            tc_neigh_frame = np.zeros(num_good_dets)
+
+            for idx_det in range(num_good_dets):
+
+                # Return and delete from list first element, going in the same order as before
+                bboxes = bboxes_video.pop(0)
+                detections_neighbors = detections_neighbors_video.pop(0)
+                frame_list = frame_list_video.pop(0)
+
+                for t in range(1,len(frame_list)):
+
+                    # Visualize track and detections
+                    #curr_im = Image.open(frame_list[t])
+                    #im_w,im_h = curr_im.size
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes[t]).reshape((1,4)),im_w,im_h))
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors[t-1],im_w,im_h),color='green')
+                    #curr_im.show()
+
+                    tc_neigh_frame[idx_det] += 1
+
+                    # Check if tracked detection matches any detection in neighbor frame, if any
+                    if len(detections_neighbors[t-1]) > 0:
+                        ovTr = np_box_ops.iou(convert_boxes_xy(bboxes[t]).reshape((1,4)),detections_neighbors[t-1])
+                        # Increment score if it does
+                        if np.max(ovTr) > threshold_track:
+                            tc_sum_frame[idx_det] += 1
 
 
-        # Two frame lists, one forward, one backward
+                bboxes = bboxes_video.pop(0)
+                detections_neighbors = detections_neighbors_video.pop(0)
+                frame_list = frame_list_video.pop(0)
 
-        # Only go through verified frames
-        frames_verified = [f['idx'] for f in dataset if f['video'] == v and f['verified']]
+                for t in range(1,len(frame_list)):
 
-        #for d in frames_verified
-            # Select three forward frames
+                    ## Visualize track and detections
+                    #curr_im = Image.open(frame_list[t])
+                    #im_w,im_h = curr_im.size
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes[t]).reshape((1,4)),im_w,im_h))
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors[t-1],im_w,im_h),color='green')
+                    #curr_im.show()
 
 
-        ## Get only those that are not labeled
-        #frames = [f for f in frames if f in unlabeled_set]
+                    tc_neigh_frame[idx_det] += 1
 
-        ## If all frames of video are in active set, ignore video
-        #if len(frames) > 0:
-            ## Extract corresponding predictions
-            #det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+                    # Check if tracked detection matches any detection in neighbor frame, if any
+                    if len(detections_neighbors[t-1]) > 0:
+                        ovTr = np_box_ops.iou(convert_boxes_xy(bboxes[t]).reshape((1,4)),detections_neighbors[t-1])
+                        # Increment score if it does
+                        if np.max(ovTr) > threshold_track:
+                            tc_sum_frame[idx_det] += 1
 
-            ## Compute and summarize entropy
-            #ent = np.array(compute_entropy(det_frames))
 
-            ##idxR = random.randint(0,len(frames)-1)
-            #idxR = ent.argmax(0)
-            #indices.append(frames[idxR])
-        ##print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
-    #return indices
+            # Compute and save mean score per frame
+            if num_good_dets > 0:
+                # Score is normalized count
+                tc_scores[frame_counter] = np.mean(tc_sum_frame/tc_neigh_frame)
+            else:
+                # Frames with no detections don't have TCFP score (inf so they aren't taken)
+                tc_scores[frame_counter] = np.inf
+
+            frame_counter += 1
+
+
+        # Select frames that achieve maximum
+        idx_min = np.where(tc_scores == np.min(tc_scores))
+        idx_sel = np.random.choice(idx_min[0])
+
+        indices.append(frames_unlabeled[idx_sel][0])
+
+        print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
+
+    return indices
 
 
 
@@ -464,13 +583,14 @@ if __name__ == "__main__":
     # Get info about full dataset
     dataset,videos = get_dataset(data_info)
 
+
     # Get experiment information from FLAGS
     name = FLAGS.name
     num_cycles = int(FLAGS.cycles)
-    num_runs = int(FLAGS.runs)
+    run_num = int(FLAGS.run)
     num_steps = str(train_config.num_steps)
 
-    output_file = FLAGS.perf_dir + name + 'r' + str(num_runs) + 'c' + str(num_cycles) + '.json'
+    output_file = FLAGS.perf_dir + name + 'r' + str(run_num) + 'c' + str(num_cycles) + '.json'
 
     # Dictionary to save performance of every run
     performances = {}
@@ -504,174 +624,179 @@ if __name__ == "__main__":
     # Save path of pre-trained model
     pretrained_checkpoint = train_config.fine_tune_checkpoint
 
-    for r in range(1,num_runs+1):
+    # Active set starts empty
+    active_set = []
 
-        # Active set starts empty
-        active_set = []
+    # Initial model is pre-trained
+    train_config.fine_tune_checkpoint = pretrained_checkpoint
 
-        # Initial model is pre-trained
-        train_config.fine_tune_checkpoint = pretrained_checkpoint
+    for cycle in range(1,num_cycles+1):
 
-        for cycle in range(1,num_cycles+1):
+        #### Training of current cycle
+        train_dir = FLAGS.train_dir + name + 'run' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
-            #### Training of current cycle
-            train_dir = FLAGS.train_dir + name + 'run' + str(r) + 'cycle' +  str(cycle) + '/'
+        # For first cycle, use random selection
+        if ('Rnd' in name) or cycle==1:
+            indices = select_random_video(dataset,videos,active_set)
+        else:
+            if ('Ent' in name):
+                indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
+            elif ('TCFP' in name):
+                indices = track_detections(dataset,videos,active_set,detected_boxes,groundtruth_boxes)
 
-            # For first cycle, use random selection
-            if ('Rnd' in name) or cycle==1:
-                indices = select_random_video(dataset,videos,active_set)
-            else:
-                if ('Ent' in name):
-                    indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
-                elif ('TCFP' in name):
-                    indices = track_detections(dataset,videos,active_set,detected_boxes,groundtruth_boxes)
+        active_set.extend(indices)
 
-            active_set.extend(indices)
+        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(run_num) + 'cycle' +  str(cycle) + '.record'
+        save_tf_record(data_info,active_set)
 
-            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '.record'
-            save_tf_record(data_info,active_set)
-
-            input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+        input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
 
-            def get_next(config):
-             return dataset_builder.make_initializable_iterator(
-                dataset_builder.build(config)).get_next()
+        def get_next(config):
+         return dataset_builder.make_initializable_iterator(
+            dataset_builder.build(config)).get_next()
 
-            create_input_dict_fn = functools.partial(get_next, input_config)
-
-
-            env = json.loads(os.environ.get('TF_CONFIG', '{}'))
-            cluster_data = env.get('cluster', None)
-            cluster = tf.train.ClusterSpec(cluster_data) if cluster_data else None
-            task_data = env.get('task', None) or {'type': 'master', 'index': 0}
-            task_info = type('TaskSpec', (object,), task_data)
-
-            # Parameters for a single worker.
-            ps_tasks = 0
-            worker_replicas = 1
-            worker_job_name = 'lonely_worker'
-            task = 0
-            is_chief = True
-            master = ''
-
-            if cluster_data and 'worker' in cluster_data:
-            # Number of total worker replicas include "worker"s and the "master".
-                worker_replicas = len(cluster_data['worker']) + 1
-            if cluster_data and 'ps' in cluster_data:
-                ps_tasks = len(cluster_data['ps'])
-
-            if worker_replicas > 1 and ps_tasks < 1:
-                raise ValueError('At least 1 ps task is needed for distributed training.')
-
-            if worker_replicas >= 1 and ps_tasks > 0:
-            # Set up distributed training.
-                server = tf.train.Server(tf.train.ClusterSpec(cluster), protocol='grpc',
-                                     job_name=task_info.type,
-                                     task_index=task_info.index)
-                if task_info.type == 'ps':
-                  server.join()
-                  #return
-
-                worker_job_name = '%s/task:%d' % (task_info.type, task_info.index)
-                task = task_info.index
-                is_chief = (task_info.type == 'master')
-                master = server.target
-
-            graph_rewriter_fn = None
-            if 'graph_rewriter_config' in configs:
-                graph_rewriter_fn = graph_rewriter_builder.build(
-                    configs['graph_rewriter_config'], is_training=True)
+        create_input_dict_fn = functools.partial(get_next, input_config)
 
 
-            trainer.train(
-              create_input_dict_fn,
-              model_fn,
-              train_config,
-              master,
-              task,
-              FLAGS.num_clones,
-              worker_replicas,
-              FLAGS.clone_on_cpu,
-              ps_tasks,
-              worker_job_name,
-              is_chief,
-              train_dir,
-              graph_hook_fn=graph_rewriter_fn)
+        env = json.loads(os.environ.get('TF_CONFIG', '{}'))
+        cluster_data = env.get('cluster', None)
+        cluster = tf.train.ClusterSpec(cluster_data) if cluster_data else None
+        task_data = env.get('task', None) or {'type': 'master', 'index': 0}
+        task_info = type('TaskSpec', (object,), task_data)
 
-            #Save active_set in train dir in case we want to restart training
-            with open(train_dir + 'active_set.txt', 'w') as f:
-                for item in active_set:
-                    f.write('{}\n'.format(item))
+        # Parameters for a single worker.
+        ps_tasks = 0
+        worker_replicas = 1
+        worker_job_name = 'lonely_worker'
+        task = 0
+        is_chief = True
+        master = ''
 
-            #### Evaluation of trained model on unlabeled set to obtain data
-            if 'Rnd' not in name:
+        if cluster_data and 'worker' in cluster_data:
+        # Number of total worker replicas include "worker"s and the "master".
+            worker_replicas = len(cluster_data['worker']) + 1
+        if cluster_data and 'ps' in cluster_data:
+            ps_tasks = len(cluster_data['ps'])
 
-               # Get unlabeled set
-                data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(r) + 'cycle' +  str(cycle) + '_unlabeled.record'
+        if worker_replicas > 1 and ps_tasks < 1:
+            raise ValueError('At least 1 ps task is needed for distributed training.')
 
-                # Remove those with wrong annotations, save some time
-                unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+        if worker_replicas >= 1 and ps_tasks > 0:
+        # Set up distributed training.
+            server = tf.train.Server(tf.train.ClusterSpec(cluster), protocol='grpc',
+                                 job_name=task_info.type,
+                                 task_index=task_info.index)
+            if task_info.type == 'ps':
+              server.join()
+              #return
 
-                # Short version, only save a subset
-                #unlabeled_set = unlabeled_set[:100]
+            worker_job_name = '%s/task:%d' % (task_info.type, task_info.index)
+            task = task_info.index
+            is_chief = (task_info.type == 'master')
+            master = server.target
 
-                save_tf_record(data_info,unlabeled_set)
-
-                print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-
-                # Set number of eval images to number of unlabeled samples and point to tfrecord
-
-                eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-                eval_config.num_examples = len(unlabeled_set)
-
-                eval_train_dir = train_dir + 'eval_train/'
-
-                def get_next_eval_train(config):
-                   return dataset_builder.make_initializable_iterator(
-                        dataset_builder.build(config)).get_next()
-
-                # Initialize input dict again (necessary?)
-                create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
-
-                graph_rewriter_fn = None
-                if 'graph_rewriter_config' in configs:
-                    graph_rewriter_fn = graph_rewriter_builder.build(
-                        configs['graph_rewriter_config'], is_training=False)
-
-                # Need to reset graph for evaluation
-                tf.reset_default_graph()
-
-                metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-                  create_eval_train_input_dict_fn,
-                  eval_model_fn,
-                  eval_config,
-                  categories,
-                  train_dir,
-                  eval_train_dir,
-                  graph_hook_fn=graph_rewriter_fn)
-
-                # Put boxes information somewhere
-                #pdb.set_trace()
-                #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
-
-                print('Done computing detections in training set')
+        graph_rewriter_fn = None
+        if 'graph_rewriter_config' in configs:
+            graph_rewriter_fn = graph_rewriter_builder.build(
+                configs['graph_rewriter_config'], is_training=True)
 
 
-            #### Evaluation of trained model on test set to record performance
-            eval_dir = train_dir + 'eval/'
+        trainer.train(
+          create_input_dict_fn,
+          model_fn,
+          train_config,
+          master,
+          task,
+          FLAGS.num_clones,
+          worker_replicas,
+          FLAGS.clone_on_cpu,
+          ps_tasks,
+          worker_job_name,
+          is_chief,
+          train_dir,
+          graph_hook_fn=graph_rewriter_fn)
 
-            # Input dict function for eval is always the same
-            def get_next_eval(config):
+        #Save active_set in train dir in case we want to restart training
+        with open(train_dir + 'active_set.txt', 'w') as f:
+            for item in active_set:
+                f.write('{}\n'.format(item))
+
+        #### Evaluation of trained model on test set to record performance
+        eval_dir = train_dir + 'eval/'
+
+        # Input dict function for eval is always the same
+        def get_next_eval(config):
+           return dataset_builder.make_initializable_iterator(
+               dataset_builder.build(config)).get_next()
+
+        # Restore eval configuration on test
+        eval_config.num_examples = num_eval_frames
+        eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
+
+        # Initialize input dict again (necessary?)
+        create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
+
+        graph_rewriter_fn = None
+        if 'graph_rewriter_config' in configs:
+            graph_rewriter_fn = graph_rewriter_builder.build(
+                configs['graph_rewriter_config'], is_training=False)
+
+        # Need to reset graph for evaluation
+        tf.reset_default_graph()
+
+        metrics,_,_ = evaluator.evaluate(
+          create_eval_input_dict_fn,
+          eval_model_fn,
+          eval_config,
+          categories,
+          train_dir,
+          eval_dir,
+          graph_hook_fn=graph_rewriter_fn)
+
+
+        aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+
+
+        performances['run'+str(run_num)+'c'+str(cycle)]= aps
+
+        # Write current performance
+        json_str = json.dumps(performances)
+        f = open(output_file,'w')
+        f.write(json_str)
+        f.close()
+
+        #### Evaluation of trained model on unlabeled set to obtain data
+        if 'Rnd' not in name and cycle < num_cycles:
+
+           # Get unlabeled set
+            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
+
+            # Remove those with wrong annotations, save some time
+            unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+
+            # For TCPF, we need detections for all frames, even if they are labeled
+            if ('TCFP' in name):
+                unlabeled_set = [i for i in range(len(dataset))]
+
+            # Short version, only save a subset
+            #unlabeled_set = unlabeled_set[:100]
+            save_tf_record(data_info,unlabeled_set)
+
+            print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
+
+            # Set number of eval images to number of unlabeled samples and point to tfrecord
+            eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+            eval_config.num_examples = len(unlabeled_set)
+
+            eval_train_dir = train_dir + 'eval_train/'
+
+            def get_next_eval_train(config):
                return dataset_builder.make_initializable_iterator(
-                   dataset_builder.build(config)).get_next()
-
-            # Restore eval configuration on test
-            eval_config.num_examples = num_eval_frames
-            eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
+                    dataset_builder.build(config)).get_next()
 
             # Initialize input dict again (necessary?)
-            create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
+            create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
 
             graph_rewriter_fn = None
             if 'graph_rewriter_config' in configs:
@@ -681,25 +806,18 @@ if __name__ == "__main__":
             # Need to reset graph for evaluation
             tf.reset_default_graph()
 
-            metrics,_,_ = evaluator.evaluate(
-              create_eval_input_dict_fn,
+            metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+              create_eval_train_input_dict_fn,
               eval_model_fn,
               eval_config,
               categories,
               train_dir,
-              eval_dir,
+              eval_train_dir,
               graph_hook_fn=graph_rewriter_fn)
 
+            #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
 
-            aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
-
-
-            performances['run'+str(r)+'c'+str(cycle)]= aps
-
-            json_str = json.dumps(performances)
-            f = open(output_file,'w')
-            f.write(json_str)
-            f.close()
+            print('Done computing detections in training set')
 
 
 
