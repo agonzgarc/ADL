@@ -41,8 +41,9 @@ from siamfc.parse_arguments import parse_arguments
 from siamfc.region_to_bbox import region_to_bbox
 
 
-#tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.set_verbosity(tf.logging.WARN)
+tf.logging.set_verbosity(tf.logging.INFO)
+tf.logging.set_verbosity(tf.logging.INFO)
+#tf.logging.set_verbosity(tf.logging.WARN)
 
 flags = tf.app.flags
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -590,7 +591,7 @@ if __name__ == "__main__":
     run_num = int(FLAGS.run)
     num_steps = str(train_config.num_steps)
 
-    output_file = FLAGS.perf_dir + name + 'r' + str(run_num) + 'c' + str(num_cycles) + '.json'
+    output_file = FLAGS.perf_dir + name + 'R' + str(run_num) + 'c' + str(num_cycles) + '.json'
 
     # Dictionary to save performance of every run
     performances = {}
@@ -624,103 +625,121 @@ if __name__ == "__main__":
     # Save path of pre-trained model
     pretrained_checkpoint = train_config.fine_tune_checkpoint
 
-    # Active set starts empty
-    active_set = []
-
     # Initial model is pre-trained
     train_config.fine_tune_checkpoint = pretrained_checkpoint
 
-    for cycle in range(1,num_cycles+1):
+    # Active set starts empty
+    active_set = []
 
-        #### Training of current cycle
-        train_dir = FLAGS.train_dir + name + 'run' + str(run_num) + 'cycle' +  str(cycle) + '/'
+    first_cycle = int(FLAGS.restart_from_cycle)
+    if first_cycle > 0:
+        restart = True
+        train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(first_cycle) + '/'
+        with open(train_dir + 'active_set.txt', 'r') as f:
+            for line in f:
+                active_set.append(int(line))
+    else:
+        restart = False
+        first_cycle = 1
 
-        # For first cycle, use random selection
-        if ('Rnd' in name) or cycle==1:
-            indices = select_random_video(dataset,videos,active_set)
+    for cycle in range(first_cycle,num_cycles+1):
+
+        pdb.set_trace()
+        # Skip first training if restarting training from cycle
+        if restart:
+            # Now set restart flag to false
+            restart = False
         else:
-            if ('Ent' in name):
-                indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
-            elif ('TCFP' in name):
-                indices = track_detections(dataset,videos,active_set,detected_boxes,groundtruth_boxes)
+            #### Training of current cycle
+            train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
-        active_set.extend(indices)
+            # For first cycle, use random selection
+            if ('Rnd' in name) or cycle==1:
+                indices = select_random_video(dataset,videos,active_set)
+            else:
+                if ('Ent' in name):
+                    indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
+                elif ('TCFP' in name):
+                    indices = track_detections(dataset,videos,active_set,detected_boxes,groundtruth_boxes)
 
-        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(run_num) + 'cycle' +  str(cycle) + '.record'
-        save_tf_record(data_info,active_set)
+            active_set.extend(indices)
 
-        input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
+            save_tf_record(data_info,active_set)
 
-
-        def get_next(config):
-         return dataset_builder.make_initializable_iterator(
-            dataset_builder.build(config)).get_next()
-
-        create_input_dict_fn = functools.partial(get_next, input_config)
-
-
-        env = json.loads(os.environ.get('TF_CONFIG', '{}'))
-        cluster_data = env.get('cluster', None)
-        cluster = tf.train.ClusterSpec(cluster_data) if cluster_data else None
-        task_data = env.get('task', None) or {'type': 'master', 'index': 0}
-        task_info = type('TaskSpec', (object,), task_data)
-
-        # Parameters for a single worker.
-        ps_tasks = 0
-        worker_replicas = 1
-        worker_job_name = 'lonely_worker'
-        task = 0
-        is_chief = True
-        master = ''
-
-        if cluster_data and 'worker' in cluster_data:
-        # Number of total worker replicas include "worker"s and the "master".
-            worker_replicas = len(cluster_data['worker']) + 1
-        if cluster_data and 'ps' in cluster_data:
-            ps_tasks = len(cluster_data['ps'])
-
-        if worker_replicas > 1 and ps_tasks < 1:
-            raise ValueError('At least 1 ps task is needed for distributed training.')
-
-        if worker_replicas >= 1 and ps_tasks > 0:
-        # Set up distributed training.
-            server = tf.train.Server(tf.train.ClusterSpec(cluster), protocol='grpc',
-                                 job_name=task_info.type,
-                                 task_index=task_info.index)
-            if task_info.type == 'ps':
-              server.join()
-              #return
-
-            worker_job_name = '%s/task:%d' % (task_info.type, task_info.index)
-            task = task_info.index
-            is_chief = (task_info.type == 'master')
-            master = server.target
-
-        graph_rewriter_fn = None
-        if 'graph_rewriter_config' in configs:
-            graph_rewriter_fn = graph_rewriter_builder.build(
-                configs['graph_rewriter_config'], is_training=True)
+            input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
 
-        trainer.train(
-          create_input_dict_fn,
-          model_fn,
-          train_config,
-          master,
-          task,
-          FLAGS.num_clones,
-          worker_replicas,
-          FLAGS.clone_on_cpu,
-          ps_tasks,
-          worker_job_name,
-          is_chief,
-          train_dir,
-          graph_hook_fn=graph_rewriter_fn)
+            def get_next(config):
+             return dataset_builder.make_initializable_iterator(
+                dataset_builder.build(config)).get_next()
 
-        #Save active_set in train dir in case we want to restart training
-        with open(train_dir + 'active_set.txt', 'w') as f:
-            for item in active_set:
-                f.write('{}\n'.format(item))
+            create_input_dict_fn = functools.partial(get_next, input_config)
+
+
+            env = json.loads(os.environ.get('TF_CONFIG', '{}'))
+            cluster_data = env.get('cluster', None)
+            cluster = tf.train.ClusterSpec(cluster_data) if cluster_data else None
+            task_data = env.get('task', None) or {'type': 'master', 'index': 0}
+            task_info = type('TaskSpec', (object,), task_data)
+
+            # Parameters for a single worker.
+            ps_tasks = 0
+            worker_replicas = 1
+            worker_job_name = 'lonely_worker'
+            task = 0
+            is_chief = True
+            master = ''
+
+            if cluster_data and 'worker' in cluster_data:
+            # Number of total worker replicas include "worker"s and the "master".
+                worker_replicas = len(cluster_data['worker']) + 1
+            if cluster_data and 'ps' in cluster_data:
+                ps_tasks = len(cluster_data['ps'])
+
+            if worker_replicas > 1 and ps_tasks < 1:
+                raise ValueError('At least 1 ps task is needed for distributed training.')
+
+            if worker_replicas >= 1 and ps_tasks > 0:
+            # Set up distributed training.
+                server = tf.train.Server(tf.train.ClusterSpec(cluster), protocol='grpc',
+                                     job_name=task_info.type,
+                                     task_index=task_info.index)
+                if task_info.type == 'ps':
+                  server.join()
+                  #return
+
+                worker_job_name = '%s/task:%d' % (task_info.type, task_info.index)
+                task = task_info.index
+                is_chief = (task_info.type == 'master')
+                master = server.target
+
+            graph_rewriter_fn = None
+            if 'graph_rewriter_config' in configs:
+                graph_rewriter_fn = graph_rewriter_builder.build(
+                    configs['graph_rewriter_config'], is_training=True)
+
+
+            trainer.train(
+              create_input_dict_fn,
+              model_fn,
+              train_config,
+              master,
+              task,
+              FLAGS.num_clones,
+              worker_replicas,
+              FLAGS.clone_on_cpu,
+              ps_tasks,
+              worker_job_name,
+              is_chief,
+              train_dir,
+              graph_hook_fn=graph_rewriter_fn)
+
+            #Save active_set in train dir in case we want to restart training
+            with open(train_dir + 'active_set.txt', 'w') as f:
+                for item in active_set:
+                    f.write('{}\n'.format(item))
+
 
         #### Evaluation of trained model on test set to record performance
         eval_dir = train_dir + 'eval/'
@@ -758,7 +777,7 @@ if __name__ == "__main__":
         aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
 
 
-        performances['run'+str(run_num)+'c'+str(cycle)]= aps
+        performances['R'+str(run_num)+'c'+str(cycle)]= aps
 
         # Write current performance
         json_str = json.dumps(performances)
@@ -770,7 +789,7 @@ if __name__ == "__main__":
         if 'Rnd' not in name and cycle < num_cycles:
 
            # Get unlabeled set
-            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'run' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
+            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
 
             # Remove those with wrong annotations, save some time
             unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
