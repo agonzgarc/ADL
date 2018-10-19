@@ -86,7 +86,7 @@ def dict_to_tf_example(data,
 
   full_path = os.path.join(dataset_directory, img_path)
 
-  print ('full_path= ',full_path)
+  #print ('full_path= ',full_path)
   with tf.gfile.GFile(full_path, 'rb') as fid:
     encoded_jpg = fid.read()
   encoded_jpg_io = io.BytesIO(encoded_jpg)
@@ -200,6 +200,47 @@ def save_tf_record(data_info,indices):
 
 
     writer.close()
+
+def save_tf_record_val(data_info,indices):
+    #if FLAGS.set not in SETS:
+        #raise ValueError('set must be in : {}'.format(SETS))
+
+    data_dir = data_info['data_dir']
+    output_path = data_info['output_path']
+    writer = tf.python_io.TFRecordWriter(output_path)
+
+    label_map_dict = label_map_util.get_label_map_dict(data_info['label_map_path'])
+
+    logging.info('Reading from ImageNet-VID dataset.')
+    examples_path = os.path.join(data_dir,'AL', data_info['set'] + '.txt')
+
+    # Annotations always come from train set now (revisit if we include val)
+    annotations_dir = os.path.join(data_dir, data_info['annotations_dir'],'VID','val')
+    examples_list = dataset_util.read_examples_list(examples_path)
+
+    for idx, example in enumerate(examples_list):
+      if idx % 100 == 0:
+        logging.info('On image %d of %d', idx, len(examples_list))
+
+      if idx in indices:
+
+          #example_xml = example[-63:-5]+'.xml'
+          example_xml = example[-35:-5]+'.xml'
+          path = os.path.join(annotations_dir,example_xml) # indexing of example to remove .JPEG from the end of file name
+
+
+          with tf.gfile.GFile(path, 'r') as fid:
+            xml_str = fid.read()
+          xml = etree.fromstring(xml_str)
+          data = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
+
+          tf_example = dict_to_tf_example(data, data_info['data_dir'], label_map_dict,
+                                          FLAGS.ignore_difficult_instances)
+          writer.write(tf_example.SerializeToString())
+
+
+    writer.close()
+
 
 
 if __name__ == '__main__':
