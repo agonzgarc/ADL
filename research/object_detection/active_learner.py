@@ -35,12 +35,6 @@ from pycocotools import mask
 from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
 
-# Tracking module
-import siamfc.siamese as siam
-from siamfc.tracker import tracker_full_video
-from siamfc.parse_arguments import parse_arguments
-from siamfc.region_to_bbox import region_to_bbox
-
 
 tf.logging.set_verbosity(tf.logging.INFO)
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -70,7 +64,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'EntAllVideos-Short',
+flags.DEFINE_string('name', 'TCFPAllVideos',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -250,14 +244,14 @@ if __name__ == "__main__":
             unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
 
-            # For TCFP it is different, rework it!
+            # For TCFP, we need to get detections for pretty much every frame,
+            # as not candidates can may be used to support candidates
             if ('TCFP' in name):
                 unlabeled_set = [i for i in range(len(dataset))]
 
-
             print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-            save_tf_record(data_info,unlabeled_set)
 
+            save_tf_record(data_info,unlabeled_set)
 
             # Set number of eval images to number of unlabeled samples and point to tfrecord
             eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
@@ -302,14 +296,15 @@ if __name__ == "__main__":
         #### Training of current cycle
         train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
+        # Budget for each cycle is the number of videos (0.5% of train set)
         if ('Rnd' in name):
             #indices = select_random_video(dataset,videos,active_set)
-            indices = sel.select_random(dataset,videos,active_set,budget=cycle*num_videos)
+            indices = sel.select_random(dataset,videos,active_set,budget=num_videos)
         else:
             if ('Ent' in name):
-                indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=cycle*num_videos)
+                indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=num_videos)
             elif ('TCFP' in name):
-                indices = track_detections(dataset,videos,active_set,detected_boxes,groundtruth_boxes)
+                indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,groundtruth_boxes,budget=num_videos)
 
         active_set.extend(indices)
 

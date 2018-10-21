@@ -2,6 +2,22 @@ import pdb
 import random
 import numpy as np
 
+import functools
+import json
+import os
+import tensorflow as tf
+import imp
+
+from object_detection.utils import np_box_ops
+from object_detection.utils import np_box_list
+from object_detection.utils import np_box_list_ops
+
+# Tracking module
+import siamfc.siamese as siam
+from siamfc.tracker import tracker_full_video
+from siamfc.parse_arguments import parse_arguments
+from siamfc.region_to_bbox import region_to_bbox
+
 
 def augment_active_set(dataset,videos,active_set,num_neighbors=5):
     """ Augment set of indices in active_set by adding a given number of neighbors
@@ -25,6 +41,33 @@ def augment_active_set(dataset,videos,active_set,num_neighbors=5):
         aug_active_set.extend(idx_with_neighbors)
 
     return aug_active_set
+
+
+def augment_to_track(dataset,videos,unlabeled_set,num_neighbors=3):
+    """ Augment set of indices in active_set by adding a given number of neighbors
+    Arg:
+        dataset: structure with information about each frames
+        videos: list of video names
+        active_set: list of indices of active_set
+        num_neighbors: number of neighbors to include
+    Returns:
+        aug_active_set: augmented list of indices with neighbors
+    """
+    aug_unlabeled_set = []
+
+    # We need to do this per video to keep limits in check
+    for v in videos:
+        frames_video = [f['idx'] for f in dataset if f['video'] == v]
+        max_frame = np.max(frames_video)
+        idx_videos_unlabeled_set = [idx for idx in frames_video if idx in unlabeled_set]
+        idx_with_neighbors = [i for idx in idx_videos_unlabeled_set for i in range(idx-num_neighbors,idx+num_neighbors+1) if i >= 0 and i
+         <= max_frame ]
+        new_idx_with_neighbors = [i for i in idx_with_neighbors if i not in aug_unlabeled_set]
+        aug_unlabeled_set.extend(idx_with_neighbors)
+
+    return aug_unlabeled_set
+
+
 
 def select_full_dataset(dataset):
     indices = [f['idx'] for f in dataset if f['verified']]
@@ -201,7 +244,7 @@ def filter_detections(boxes,scores,labels,thresh_detection = 0.5):
     return boxes[idx_good_det,:],scores[idx_good_det],labels[idx_good_det]
 
 
-def track_detections(dataset,videos,active_set,detections,groundtruths):
+def select_TCFP_per_video(dataset,videos,active_set,detections,groundtruths):
 
     # Selector configuration
     threshold_track = 0.7
@@ -240,7 +283,7 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
 
     for v in videos:
 
-        video_dir = os.path.join(FLAGS.data_dir,'Data','VID','train',v)
+        video_dir = os.path.join(data_dir,'Data','VID','train',v)
 
         # Select frames in current video (even those with wrong GTs)
         frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
@@ -440,6 +483,276 @@ def track_detections(dataset,videos,active_set,detections,groundtruths):
 
             print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
 
+    return indices
+
+
+
+def select_TCFP(dataset,videos,data_dir,active_set,detections,groundtruths,threshold_track =
+            0.7, num_frames_to_track = 3,budget=788):
+
+    # Tracker configuration
+    hp, evaluation, run, env, design = parse_arguments()
+
+    final_score_sz = hp.response_up * (design.score_sz - 1) + 1
+
+    # Reload module so elements are in current graph, look for a better solution to this
+    tf.reset_default_graph()
+    imp.reload(siam)
+
+    filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)
+
+
+    # Candidates are verified frames that aren't close to already labeled frames
+    aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+    unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set]
+    #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+
+    total_frames = len([f for f in dataset if f['idx'] in unlabeled_set and f['verified']])
+    overall_frame_counter = 0
+
+    # ARE DETECTIONS NMSed?
+    detected_boxes = detections['boxes']
+    detected_scores = detections['scores']
+    detected_labels = detections['labels']
+
+    indices = []
+    elapsed_time = []
+
+    # Get only top detections
+    for i in range(len(detected_boxes)):
+        detected_boxes[i],detected_scores[i],detected_labels[i] = filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
+
+    gt_boxes = groundtruths['boxes']
+
+    tc_scores_all_videos = []
+
+    for v in videos:
+
+        video_dir = os.path.join(data_dir,'Data','VID','train',v)
+
+        # Select frames in current video (even those with wrong GTs)
+        frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
+
+        # Get maximium index of frames in video
+        idx_all_frames_video = [f[0] for f in frames]
+        max_frame = np.max(idx_all_frames_video)
+
+        # Get only those that are not labeled and verified --> pick from these
+        frames_unlabeled = [f for f in frames if f[0] in unlabeled_set and f[2]]
+
+        if len(frames_unlabeled) > 0:
+
+            frame_counter = 0
+
+            frame_list_video = []
+            pos_x_video = []
+            pos_y_video = []
+            target_w_video = []
+            target_h_video = []
+
+            num_good_dets_video = []
+
+            detections_neighbors_video = []
+
+            for fu in frames_unlabeled:
+
+                idx_frame_video = idx_all_frames_video.index(fu[0])
+
+                frame_counter += 1
+                overall_frame_counter += 1
+
+                #print("Processing frame {}/{} with total idx:{}, video idx {}".format(frame_counter+1,len(frames_unlabeled),fu[0],idx_frame_video))
+                print("Adding information about frame in video: {}/{}, overall: {}/{}".format(frame_counter,len(frames_unlabeled),overall_frame_counter, total_frames))
+
+                # ASSUMPTION: for TCFP, we have detections for the whole dataset
+
+                # Get boxes for current frame
+                boxes_frame = detected_boxes[fu[0]]
+                scores_frame = detected_scores[fu[0]]
+                labels_frame = detected_labels[fu[0]]
+
+                gt_frame = gt_boxes[fu[0]]
+
+                ## Visualization of frame's GT and detections
+                #curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
+                #im_w,im_h = curr_im.size
+                #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_frame,im_w,im_h))
+                #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes_frame[:50,:],im_w,im_h),color='green')
+                #curr_im.show()
+
+                num_good_dets = labels_frame.shape[0]
+
+                num_good_dets_video.append(num_good_dets)
+
+                for idx_det in range(num_good_dets):
+
+                    ###### Common part for forward and backward tracking
+                    # Convert [y x y x] to [y x w h]
+                    curr_box = convert_boxes_wh(boxes_frame[idx_det])
+                    pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
+
+                    # Append them twice, forward and backward
+                    pos_x_video.append(pos_x)
+                    pos_x_video.append(pos_x)
+                    pos_y_video.append(pos_y)
+                    pos_y_video.append(pos_y)
+                    target_w_video.append(target_w)
+                    target_w_video.append(target_w)
+                    target_h_video.append(target_h)
+                    target_h_video.append(target_h)
+
+
+                    ###### Forward part
+                    detections_neighbors = []
+                    frame_list = [os.path.join(video_dir,frames[idx_frame_video][1])]
+
+                    # I can't do this with list comprehension for some reason
+                    #frame_list = [frames[i] for i in range(idx_frame_video+1,idx_frame_video+4) if frames[i] in frames]
+
+                    for t in range(1,num_frames_to_track+1):
+                        idx_neighbor = idx_frame_video+t
+
+                        # Check if neighbor still in video
+                        if idx_neighbor < len(frames):
+                            frame_list.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                            # Take only those of the current class
+                            detections_neighbors.append(detected_boxes[fu[0]+t][detected_labels[fu[0]+t] == labels_frame[idx_det]])
+
+                    frame_list_video.append(frame_list)
+                    detections_neighbors_video.append(detections_neighbors)
+
+                    #bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
+
+                    ###### Backward part
+                    detections_neighbors = []
+                    frame_list = [os.path.join(video_dir,frames[idx_frame_video][1])]
+
+                    for t in range(1,num_frames_to_track+1):
+                        idx_neighbor = idx_frame_video-t
+                        if idx_neighbor >= 0:
+                            frame_list.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                            # Take only those of the current class
+                            detections_neighbors.append(detected_boxes[fu[0]-t][detected_labels[fu[0]-t] == labels_frame[idx_det]])
+
+                    frame_list_video.append(frame_list)
+                    detections_neighbors_video.append(detections_neighbors)
+                    #bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
+
+
+
+
+            # Track ALL frames and all detections in video with one call
+            bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video,
+                           pos_y_video, target_w_video, target_h_video, final_score_sz, filename, image, templates_z, scores)
+
+            elapsed_time.append(elapsed_time_video)
+
+            # Computation of TC-FP score
+            frame_counter = 0
+
+            tc_scores = np.zeros(len(frames_unlabeled))
+
+            for fu in frames_unlabeled:
+
+                num_good_dets = num_good_dets_video[frame_counter]
+
+                tc_sum_frame = np.zeros(num_good_dets)
+                tc_neigh_frame = np.zeros(num_good_dets)
+
+                for idx_det in range(num_good_dets):
+
+                    # Return and delete from list first element, going in the same order as before
+                    bboxes = bboxes_video.pop(0)
+                    detections_neighbors = detections_neighbors_video.pop(0)
+                    frame_list = frame_list_video.pop(0)
+
+                    for t in range(1,len(frame_list)):
+
+                        # Visualize track and detections
+                        #curr_im = Image.open(frame_list[t])
+                        #im_w,im_h = curr_im.size
+                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes[t]).reshape((1,4)),im_w,im_h))
+                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors[t-1],im_w,im_h),color='green')
+                        #curr_im.show()
+
+                        tc_neigh_frame[idx_det] += 1
+
+                        # Check if tracked detection matches any detection in neighbor frame, if any
+                        if len(detections_neighbors[t-1]) > 0:
+                            ovTr = np_box_ops.iou(convert_boxes_xy(bboxes[t]).reshape((1,4)),detections_neighbors[t-1])
+                            # Increment score if it does
+                            if np.max(ovTr) > threshold_track:
+                                tc_sum_frame[idx_det] += 1
+
+
+                    bboxes = bboxes_video.pop(0)
+                    detections_neighbors = detections_neighbors_video.pop(0)
+                    frame_list = frame_list_video.pop(0)
+
+                    for t in range(1,len(frame_list)):
+
+                        ## Visualize track and detections
+                        #curr_im = Image.open(frame_list[t])
+                        #im_w,im_h = curr_im.size
+                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes[t]).reshape((1,4)),im_w,im_h))
+                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors[t-1],im_w,im_h),color='green')
+                        #curr_im.show()
+
+
+                        tc_neigh_frame[idx_det] += 1
+
+                        # Check if tracked detection matches any detection in neighbor frame, if any
+                        if len(detections_neighbors[t-1]) > 0:
+                            ovTr = np_box_ops.iou(convert_boxes_xy(bboxes[t]).reshape((1,4)),detections_neighbors[t-1])
+                            # Increment score if it does
+                            if np.max(ovTr) > threshold_track:
+                                tc_sum_frame[idx_det] += 1
+
+
+                # Compute and save mean score per frame
+                if num_good_dets > 0:
+                    # Score is normalized count
+                    tc_scores[frame_counter] = np.mean(tc_sum_frame/tc_neigh_frame)
+                else:
+                    # Frames with no detections don't have TCFP score (inf so they aren't taken)
+                    tc_scores[frame_counter] = np.inf
+
+                frame_counter += 1
+
+            tc_scores_all_videos.extend(list(tc_scores))
+
+            print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
+
+
+    idx_frames_unlabeled = [f['idx'] for f in dataset if f['idx'] in unlabeled_set and f['verified']]
+    tc_scores_np = np.asarray(tc_scores_all_videos)
+
+    # Default sort in ascending order, here we need descending
+    idx_sort = tc_scores_np.argsort()
+
+    tc_scores_sorted = tc_scores_np.take(idx_sort)
+
+    tc_scores_sel = tc_scores_sorted[:budget]
+
+    # If the last value selected is not unique 
+    if tc_scores_sel[-1] == tc_scores_sel[-2]:
+
+        # Those that have lower TCFP than the last one are in
+        idx_already_in = np.where(tc_scores_sel < tc_scores_sel[-1])
+        indices_lower = [idx_frames_unlabeled[i] for i in idx_sort[idx_already_in]]
+
+        remaining_budget = budget - len(indices_lower)
+        idx_last_val = np.where(tc_scores_sorted == tc_scores_sel[-1])
+        idx_sel_last_val = np.random.choice(idx_sort[idx_last_val],size=remaining_budget)
+
+        indices_equal = [idx_frames_unlabeled[i] for i in idx_sel_last_val]
+
+        indices = indices_lower + indices_equal
+    else:
+        indices = [idx_frames_unlabeled[i] for i in idx_sort[:budget]]
+
+
+    pdb.set_trace()
     return indices
 
 
