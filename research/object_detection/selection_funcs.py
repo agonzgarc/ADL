@@ -103,6 +103,39 @@ def compute_entropy(predictions):
 
     return entropies
 
+
+def select_entropy(dataset,videos,active_set,detections,budget=788):
+
+        indices = []
+
+        # We have detections only for the selected unlabeled set (no neighbors
+        # or unverified frames), be careful with indexing
+        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+
+        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+        predictions = detections['scores_with_background']
+
+        num_classes = 3+1
+
+        num_samples = len(unlabeled_set)
+
+        prediction_list = [predictions[i] for i in range(num_samples)]
+
+        ent = np.array(compute_entropy(prediction_list))
+
+        # Default sort in ascending order, here we need descending
+        idx_sort = ent.argsort()
+
+        indices_pred = idx_sort[-budget:]
+
+        # Indices are now local to unlabeled set, take the global idx 
+        indices = [unlabeled_set[i] for i in indices_pred]
+
+        return indices
+
+
+
 def select_entropy_video(dataset,videos,active_set,detections):
 
         indices = []

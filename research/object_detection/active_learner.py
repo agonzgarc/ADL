@@ -18,7 +18,7 @@ import tensorflow as tf
 import imp
 
 from object_detection import trainer
-from object_detection import selection_funcs
+from object_detection import selection_funcs as sel
 from object_detection import evaluator_al as evaluator
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
@@ -70,7 +70,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'RndAllVideos',
+flags.DEFINE_string('name', 'EntAllVideos-Short',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -198,6 +198,7 @@ if __name__ == "__main__":
     num_cycles = int(FLAGS.cycles)
     run_num = int(FLAGS.run)
     num_steps = str(train_config.num_steps)
+    epochs = int(FLAGS.epochs)
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -234,15 +235,79 @@ if __name__ == "__main__":
 
     for cycle in range(1,num_cycles+1):
 
+
+        #### Evaluation of trained model on unlabeled set to obtain data for selection
+
+        if 'Rnd' not in name and cycle < num_cycles:
+
+           # Get unlabeled set
+            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
+
+
+            # Do not evaluate labeled samples, their neighbors or unverified frames
+            aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
+
+            unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+
+            # For TCFP it is different, rework it!
+            if ('TCFP' in name):
+                unlabeled_set = [i for i in range(len(dataset))]
+
+
+            print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
+            save_tf_record(data_info,unlabeled_set)
+
+
+            # Set number of eval images to number of unlabeled samples and point to tfrecord
+            eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+            eval_config.num_examples = len(unlabeled_set)
+
+            eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
+
+            def get_next_eval_train(config):
+               return dataset_builder.make_initializable_iterator(
+                    dataset_builder.build(config)).get_next()
+
+            # Initialize input dict again (necessary?)
+            create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
+
+            graph_rewriter_fn = None
+            if 'graph_rewriter_config' in configs:
+                graph_rewriter_fn = graph_rewriter_builder.build(
+                    configs['graph_rewriter_config'], is_training=False)
+
+            # Need to reset graph for evaluation
+            tf.reset_default_graph()
+
+            metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+              create_eval_train_input_dict_fn,
+              eval_model_fn,
+              eval_config,
+              categories,
+              train_dir,
+              eval_train_dir,
+              graph_hook_fn=graph_rewriter_fn)
+
+            #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
+
+            print('Done computing detections in training set')
+
+
+            # Remove tfrecord used for training
+            if os.path.exists(data_info['output_path']):
+                os.remove(data_info['output_path'])
+
+
         #### Training of current cycle
         train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
         if ('Rnd' in name):
             #indices = select_random_video(dataset,videos,active_set)
-            indices = selection_funcs.select_random(dataset,videos,active_set,budget=cycle*num_videos)
+            indices = sel.select_random(dataset,videos,active_set,budget=cycle*num_videos)
         else:
             if ('Ent' in name):
-                indices = select_entropy_video(dataset,videos,active_set,detected_boxes)
+                indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=cycle*num_videos)
             elif ('TCFP' in name):
                 indices = track_detections(dataset,videos,active_set,detected_boxes,groundtruth_boxes)
 
@@ -329,69 +394,6 @@ if __name__ == "__main__":
         if os.path.exists(data_info['output_path']):
             os.remove(data_info['output_path'])
 
-        #### Evaluation of trained model on unlabeled set to obtain data
-        if 'Rnd' not in name and cycle < num_cycles:
-
-           # Get unlabeled set
-            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
-
-            # Remove those with wrong annotations, save some time
-            unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
-
-            # Do not evaluate labeled samples, their neighbors or unverified frames
-            aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors)
-
-            frames = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-
-            # For TCPF, we need detections for all frames, even if they are labeled
-            if ('TCFP' in name):
-                unlabeled_set = [i for i in range(len(dataset))]
-
-            save_tf_record(data_info,unlabeled_set)
-
-            print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-
-            # Set number of eval images to number of unlabeled samples and point to tfrecord
-            eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-            eval_config.num_examples = len(unlabeled_set)
-
-            eval_train_dir = train_dir + 'eval_train/'
-
-            def get_next_eval_train(config):
-               return dataset_builder.make_initializable_iterator(
-                    dataset_builder.build(config)).get_next()
-
-            # Initialize input dict again (necessary?)
-            create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
-
-            graph_rewriter_fn = None
-            if 'graph_rewriter_config' in configs:
-                graph_rewriter_fn = graph_rewriter_builder.build(
-                    configs['graph_rewriter_config'], is_training=False)
-
-            # Need to reset graph for evaluation
-            tf.reset_default_graph()
-
-            metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-              create_eval_train_input_dict_fn,
-              eval_model_fn,
-              eval_config,
-              categories,
-              train_dir,
-              eval_train_dir,
-              graph_hook_fn=graph_rewriter_fn)
-
-            #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
-
-            print('Done computing detections in training set')
-
-            # Remove tfrecord used for training
-            if os.path.exists(data_info['output_path']):
-                os.remove(data_info['output_path'])
-
-
-
 
             # Update initial model, add latest cycle
             #train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
@@ -399,6 +401,6 @@ if __name__ == "__main__":
 
 
 
-#metrics,_,_ = evaluator.evaluate(create_eval_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_dir, graph_hook_fn=graph_rewriter_fn)
+#metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate( create_eval_train_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_train_dir, graph_hook_fn=graph_rewriter_fn)
 
 #trainer.train(create_input_dict_fn, model_fn, train_config, master, task, FLAGS.num_clones, worker_replicas,FLAGS.clone_on_cpu,ps_tasks, worker_job_name,is_chief,train_dir, graph_hook_fn=graph_rewriter_fn)
