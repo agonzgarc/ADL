@@ -64,7 +64,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'TCFPAllVideos',
+flags.DEFINE_string('name', 'EntAllVideos-IncNeigh',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')

@@ -169,11 +169,28 @@ def select_entropy(dataset,videos,active_set,detections,budget=788):
 
         # Default sort in ascending order, here we need descending
         idx_sort = ent.argsort()
+        idx_sort = list(idx_sort[::-1])
+        pdb.set_trace()
 
-        indices_pred = idx_sort[-budget:]
+        indices = []
+        new_active_set = []
+        new_active_set.extend(active_set)
 
-        # Indices are now local to unlabeled set, take the global idx 
-        indices = [unlabeled_set[i] for i in indices_pred]
+        while len(indices) < budget:
+            # Get highest entropy value
+            try:
+                top = idx_sort.pop(0)
+
+                # top is local index in unlabeled, get global
+                top_global = unlabeled_set[top]
+
+                # Only add to indices if not if augmented active set
+                if top_global not in aug_active_set:
+                    indices.append(top_global)
+                    new_active_set.append(top_global)
+                    aug_active_set = augment_active_set(dataset,videos,new_active_set,num_neighbors=5)
+            except:
+                break
 
         return indices
 
