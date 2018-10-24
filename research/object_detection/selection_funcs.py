@@ -149,8 +149,6 @@ def compute_entropy(predictions):
 
 def select_entropy(dataset,videos,active_set,detections,budget=788):
 
-        indices = []
-
         # We have detections only for the selected unlabeled set (no neighbors
         # or unverified frames), be careful with indexing
         aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
@@ -167,10 +165,17 @@ def select_entropy(dataset,videos,active_set,detections,budget=788):
 
         ent = np.array(compute_entropy(prediction_list))
 
+        #pdb.set_trace()
+        #output_file='entropies.txt'
+
+        #json_str = json.dumps(ent)
+        #f = open(output_file,'w')
+        #f.write(json_str)
+        #f.close()
+
         # Default sort in ascending order, here we need descending
         idx_sort = ent.argsort()
         idx_sort = list(idx_sort[::-1])
-        pdb.set_trace()
 
         indices = []
         new_active_set = []
@@ -188,10 +193,10 @@ def select_entropy(dataset,videos,active_set,detections,budget=788):
                 if top_global not in aug_active_set:
                     indices.append(top_global)
                     new_active_set.append(top_global)
+                    print("Augmenting new active set with added length:{}/{}".format(len(indices),budget))
                     aug_active_set = augment_active_set(dataset,videos,new_active_set,num_neighbors=5)
             except:
                 break
-
         return indices
 
 
@@ -769,7 +774,6 @@ def select_TCFP(dataset,videos,data_dir,active_set,detections,groundtruths,thres
         indices = [idx_frames_unlabeled[i] for i in idx_sort[:budget]]
 
 
-    pdb.set_trace()
     return indices
 
 
