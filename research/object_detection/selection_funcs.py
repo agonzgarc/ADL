@@ -63,7 +63,7 @@ def augment_to_track(dataset,videos,unlabeled_set,num_neighbors=3):
         idx_with_neighbors = [i for idx in idx_videos_unlabeled_set for i in range(idx-num_neighbors,idx+num_neighbors+1) if i >= 0 and i
          <= max_frame ]
         new_idx_with_neighbors = [i for i in idx_with_neighbors if i not in aug_unlabeled_set]
-        aug_unlabeled_set.extend(idx_with_neighbors)
+        aug_unlabeled_set.extend(new_idx_with_neighbors)
 
     return aug_unlabeled_set
 
@@ -178,8 +178,8 @@ def select_entropy(dataset,videos,active_set,detections,budget=788):
         idx_sort = list(idx_sort[::-1])
 
         indices = []
-        new_active_set = []
-        new_active_set.extend(active_set)
+        #new_active_set = []
+        #new_active_set.extend(active_set)
 
         while len(indices) < budget:
             # Get highest entropy value
@@ -192,9 +192,15 @@ def select_entropy(dataset,videos,active_set,detections,budget=788):
                 # Only add to indices if not if augmented active set
                 if top_global not in aug_active_set:
                     indices.append(top_global)
-                    new_active_set.append(top_global)
+                    # Get video for corresponding new frames
+                    v = dataset[top_global]['video']
+                    frames_video = [f['idx'] for f in dataset if f['video'] == v]
+                    min_frame = np.min(frames_video)
+                    max_frame = np.max(frames_video)
+                    idx_with_neighbors = [i for i in range(top_global-5,top_global+5+1) if i >= min_frame and i <= max_frame]
+                    new_idx_with_neighbors = [i for i in idx_with_neighbors if i not in aug_active_set]
+                    aug_active_set.extend(new_idx_with_neighbors)
                     print("Augmenting new active set with added length:{}/{}".format(len(indices),budget))
-                    aug_active_set = augment_active_set(dataset,videos,new_active_set,num_neighbors=5)
             except:
                 break
         return indices
