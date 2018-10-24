@@ -16,6 +16,7 @@ import json
 import os
 import tensorflow as tf
 import imp
+import pickle
 
 from object_detection import trainer
 from object_detection import selection_funcs as sel
@@ -149,6 +150,11 @@ def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
             vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(det_im[:2,],im_w,im_h),color='green')
             curr_im.show()
 
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, np.ndarray):
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 #def main(_):
 if __name__ == "__main__":
@@ -234,63 +240,71 @@ if __name__ == "__main__":
 
         if 'Rnd' not in name and cycle < num_cycles:
 
-           # Get unlabeled set
-            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
-
-
-            # Do not evaluate labeled samples, their neighbors or unverified frames
-            aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
-
-            unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-
-            # For TCFP, we need to get detections for pretty much every frame,
-            # as not candidates can may be used to support candidates
-            if ('TCFP' in name):
-                unlabeled_set = [i for i in range(len(dataset))]
-
-            print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-
-            save_tf_record(data_info,unlabeled_set)
-
-            # Set number of eval images to number of unlabeled samples and point to tfrecord
-            eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-            eval_config.num_examples = len(unlabeled_set)
-
             eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
 
-            def get_next_eval_train(config):
-               return dataset_builder.make_initializable_iterator(
-                    dataset_builder.build(config)).get_next()
+            if os.path.exists(eval_train_dir + 'detections.dat'):
+                with open(eval_train_dir + 'detections.dat','rb') as infile:
+                    detected_boxes = pickle.load(infile)
 
-            # Initialize input dict again (necessary?)
-            create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
+            else:
 
-            graph_rewriter_fn = None
-            if 'graph_rewriter_config' in configs:
-                graph_rewriter_fn = graph_rewriter_builder.build(
-                    configs['graph_rewriter_config'], is_training=False)
+                # Get unlabeled set
+                data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
 
-            # Need to reset graph for evaluation
-            tf.reset_default_graph()
+                # Do not evaluate labeled samples, their neighbors or unverified frames
+                aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
 
-            metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-              create_eval_train_input_dict_fn,
-              eval_model_fn,
-              eval_config,
-              categories,
-              train_dir,
-              eval_train_dir,
-              graph_hook_fn=graph_rewriter_fn)
-
-            #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
-
-            print('Done computing detections in training set')
+                unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
 
-            # Remove tfrecord used for training
-            if os.path.exists(data_info['output_path']):
-                os.remove(data_info['output_path'])
+                # For TCFP, we need to get detections for pretty much every frame,
+                # as not candidates can may be used to support candidates
+                if ('TCFP' in name):
+                    unlabeled_set = [i for i in range(len(dataset))]
+
+                print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
+
+                save_tf_record(data_info,unlabeled_set)
+
+                # Set number of eval images to number of unlabeled samples and point to tfrecord
+                eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+                eval_config.num_examples = len(unlabeled_set)
+
+
+                def get_next_eval_train(config):
+                   return dataset_builder.make_initializable_iterator(
+                        dataset_builder.build(config)).get_next()
+
+                # Initialize input dict again (necessary?)
+                create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
+
+                graph_rewriter_fn = None
+                if 'graph_rewriter_config' in configs:
+                    graph_rewriter_fn = graph_rewriter_builder.build(
+                        configs['graph_rewriter_config'], is_training=False)
+
+                # Need to reset graph for evaluation
+                tf.reset_default_graph()
+
+                metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+                  create_eval_train_input_dict_fn,
+                  eval_model_fn,
+                  eval_config,
+                  categories,
+                  train_dir,
+                  eval_train_dir,
+                  graph_hook_fn=graph_rewriter_fn)
+
+                #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
+                with open(eval_train_dir + 'detections.dat','wb') as outfile:
+                    pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+                print('Done computing detections in training set')
+
+
+                # Remove tfrecord used for training
+                if os.path.exists(data_info['output_path']):
+                    os.remove(data_info['output_path'])
 
 
         #### Training of current cycle
