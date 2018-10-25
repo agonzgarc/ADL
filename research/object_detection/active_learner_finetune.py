@@ -68,7 +68,7 @@ flags.DEFINE_string('name', 'Rnd-FineTuning',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
-flags.DEFINE_string('epochs','7',
+flags.DEFINE_string('epochs','5',
                     'Number of epochs')
 flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
@@ -308,12 +308,12 @@ if __name__ == "__main__":
         active_set.extend(indices)
 
         data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
-        save_tf_record(data_info,indices)
+        save_tf_record(data_info,active_set)
 
         input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
         # Set number of steps based on epochs
-        train_config.num_steps = epochs*len(indices)
+        train_config.num_steps = epochs*len(active_set)
 
         def get_next(config):
          return dataset_builder.make_initializable_iterator(
