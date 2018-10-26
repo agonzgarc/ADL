@@ -318,7 +318,7 @@ if __name__ == "__main__":
             if ('Ent' in name):
                 indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=num_videos)
             elif ('TCFP' in name):
-                indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,groundtruth_boxes,budget=num_videos)
+                indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,groundtruth_boxes,budget=num_videos)
 
         active_set.extend(indices)
 
