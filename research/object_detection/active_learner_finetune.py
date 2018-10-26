@@ -68,7 +68,7 @@ flags.DEFINE_string('name', 'Rnd-FineTuning',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
-flags.DEFINE_string('epochs','5',
+flags.DEFINE_string('epochs','7',
                     'Number of epochs')
 flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
@@ -305,10 +305,17 @@ if __name__ == "__main__":
             elif ('TCFP' in name):
                 indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,groundtruth_boxes,budget=num_videos)
 
+        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
+
+        # Before saving tfrecord, 
+        tmp_active_set = active_set[:]
+        # Cycle is off by 1, cycle 0's samples were seen by pre-trained
+        for ic in range(cycle+1):
+            tmp_active_set.extend(indices)
+        save_tf_record(data_info,tmp_active_set)
+
         active_set.extend(indices)
 
-        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
-        save_tf_record(data_info,active_set)
 
         input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
