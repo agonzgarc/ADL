@@ -65,11 +65,11 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'EntAllVideos-IncNeigh',
+flags.DEFINE_string('name', 'TCFPxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
-flags.DEFINE_string('epochs','7',
+flags.DEFINE_string('epochs','10',
                     'Number of epochs')
 flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
@@ -241,11 +241,11 @@ if __name__ == "__main__":
         if 'Rnd' not in name and cycle < num_cycles:
 
             eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
-
             if os.path.exists(eval_train_dir + 'detections.dat'):
                 with open(eval_train_dir + 'detections.dat','rb') as infile:
+                ###### pdb remove latinq
                     detected_boxes = pickle.load(infile)
-
+                    #detected_boxes = pickle.load(infile,encoding='latin1')
             else:
 
                 # Get unlabeled set
@@ -318,7 +318,7 @@ if __name__ == "__main__":
             if ('Ent' in name):
                 indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=num_videos)
             elif ('TCFP' in name):
-                indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,groundtruth_boxes,budget=num_videos)
+                indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
 
         active_set.extend(indices)
 
