@@ -310,12 +310,6 @@ def select_TCFP_per_video(dataset,videos,data_dir,active_set,detections):
 
     for v in videos:
 
-        # Reload module so elements are in current graph, look for a better solution to this
-        tf.reset_default_graph()
-        imp.reload(siam)
-
-        filename, image, templates_z, scores = siam.build_tracking_graph(final_score_sz, design, env)
-
         video_dir = os.path.join(data_dir,'Data','VID','train',v)
 
         # Select frames in current video (even those with wrong GTs)
@@ -430,8 +424,7 @@ def select_TCFP_per_video(dataset,videos,data_dir,active_set,detections):
 
 
             # Track ALL frames and all detections in video with one call
-            bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video,
-                           pos_y_video, target_w_video, target_h_video, final_score_sz, filename, image, templates_z, scores)
+            bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video, pos_y_video, target_w_video, target_h_video, final_score_sz, env)
 
             elapsed_time.append(elapsed_time_video)
 

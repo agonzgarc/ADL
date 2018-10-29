@@ -9,12 +9,14 @@ sys.path.append('../')
 
 import pdb
 
-pos_x_ph = tf.placeholder(tf.float64)
-pos_y_ph = tf.placeholder(tf.float64)
-z_sz_ph = tf.placeholder(tf.float64)
-x_sz0_ph = tf.placeholder(tf.float64)
-x_sz1_ph = tf.placeholder(tf.float64)
-x_sz2_ph = tf.placeholder(tf.float64)
+with tf.Graph().as_default():
+
+    pos_x_ph = tf.placeholder(tf.float64)
+    pos_y_ph = tf.placeholder(tf.float64)
+    z_sz_ph = tf.placeholder(tf.float64)
+    x_sz0_ph = tf.placeholder(tf.float64)
+    x_sz1_ph = tf.placeholder(tf.float64)
+    x_sz2_ph = tf.placeholder(tf.float64)
 
 
 # the follow parameters *have to* reflect the design of the network to be imported

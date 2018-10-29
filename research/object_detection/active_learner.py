@@ -244,8 +244,8 @@ if __name__ == "__main__":
             if os.path.exists(eval_train_dir + 'detections.dat'):
                 with open(eval_train_dir + 'detections.dat','rb') as infile:
                 ###### pdb remove latinq
-                    detected_boxes = pickle.load(infile)
-                    #detected_boxes = pickle.load(infile,encoding='latin1')
+                    #detected_boxes = pickle.load(infile)
+                    detected_boxes = pickle.load(infile,encoding='latin1')
             else:
 
                 # Get unlabeled set
