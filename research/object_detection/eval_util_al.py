@@ -265,7 +265,7 @@ def _run_checkpoint_once(tensor_dict,
   # Soft placement allows placing on CPU ops without GPU implementation.
   session_config = tf.ConfigProto(allow_soft_placement=True,
                                     log_device_placement=False)
-  session_config.gpu_options.per_process_gpu_memory_fraction = 0.6
+  session_config.gpu_options.allow_growth = True
 
 
   sess = tf.Session(master, graph=tf.get_default_graph(),config=session_config)

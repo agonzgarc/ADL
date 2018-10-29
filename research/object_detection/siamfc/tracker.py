@@ -95,10 +95,13 @@ def tracker_full_video(hp, run, design, frame_name_list_video, pos_x_video,
 
     bboxes_video = []
 
+    session_config = tf.ConfigProto()
+    session_config.gpu_options.allow_growth = True
+
     t_start = time.time()
 
     #with tf.Session(graph=graph) as sess:
-    with tf.Session() as sess:
+    with tf.Session(config=session_config) as sess:
         tf.global_variables_initializer().run()
 
         # Coordinate the loading of image files.
