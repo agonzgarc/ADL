@@ -65,7 +65,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'TCFPxVid',
+flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -90,7 +90,8 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
+          'set': 'train_FullTrainxVid_clean'}
+          #'set': 'train_150K_clean'}
           #'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
@@ -313,7 +314,8 @@ if __name__ == "__main__":
         # Budget for each cycle is the number of videos (0.5% of train set)
         if ('Rnd' in name):
             #indices = select_random_video(dataset,videos,active_set)
-            indices = sel.select_random(dataset,videos,active_set,budget=num_videos)
+            #indices = sel.select_random(dataset,videos,active_set,budget=num_videos)
+            indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
                 indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=num_videos)

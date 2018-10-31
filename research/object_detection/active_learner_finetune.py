@@ -64,7 +64,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'Rnd-FineTuning',
+flags.DEFINE_string('name', 'Ent-FineTuning-Prop',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -301,9 +301,10 @@ if __name__ == "__main__":
             indices = sel.select_random(dataset,videos,active_set,budget=num_videos)
         else:
             if ('Ent' in name):
-                indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=num_videos)
+                #indices = sel.select_entropy_video(dataset,videos,active_set,detected_boxes,budget=num_videos)
+                indices = sel.select_entropy_video(dataset,videos,active_set,detected_boxes)
             elif ('TCFP' in name):
-                indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,groundtruth_boxes,budget=num_videos)
+                indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
 
         data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
 

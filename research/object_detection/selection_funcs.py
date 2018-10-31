@@ -69,6 +69,38 @@ def augment_to_track(dataset,videos,unlabeled_set,num_neighbors=3):
 
 
 
+def select_full_dataset_per_video(dataset,videos):
+
+    indices = []
+
+    video_list = list(videos)
+
+    all_frames = [[f['idx'],f['video']] for f in dataset if f['verified']]
+    total_frames = len(all_frames)
+
+    frames_videos = []
+    for v in video_list:
+        frames_videos.append([f[0] for f in all_frames if f[1] == v])
+
+    idx_ignore_video = []
+    while len(indices) < total_frames:
+
+        for i in range(len(video_list)):
+            if i not in idx_ignore_video:
+                v = video_list[i]
+                fv = frames_videos[i]
+                frames = [f for f in fv if f not in indices]
+                if len(frames)>0:
+                    new_ind = random.choice(frames)
+                    indices.append(new_ind)
+                    all_frames.remove([new_ind,v])
+                else:
+                    idx_ignore_video.append(i)
+
+        print("{}/{} frames added. Remaining videos: {}".format(len(indices),total_frames,len(video_list) - len(idx_ignore_video)))
+    return indices
+
+
 def select_full_dataset(dataset):
     indices = [f['idx'] for f in dataset if f['verified']]
     return indices
@@ -104,7 +136,8 @@ def select_random_video(dataset,videos,active_set):
         #aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
     #else:
         #aug_active_set = active_set
-    aug_active_set = active_set
+    #aug_active_set = active_set
+    aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
 
     indices = []
     for v in videos:
