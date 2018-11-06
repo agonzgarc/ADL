@@ -65,13 +65,14 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
+#flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
+flags.DEFINE_string('name', 'LstxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
 flags.DEFINE_string('epochs','10',
                     'Number of epochs')
-flags.DEFINE_string('restart_from_cycle','0',
+flags.DEFINE_string('restart_from_cycle','2',
                     'Cycle from which we want to restart training, if any')
 flags.DEFINE_string('run','1',
                     'Number of current run')
@@ -90,8 +91,7 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_FullTrainxVid_clean'}
-          #'set': 'train_150K_clean'}
+          'set': 'train_150K_clean'}
           #'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
@@ -200,6 +200,7 @@ if __name__ == "__main__":
     run_num = int(FLAGS.run)
     num_steps = str(train_config.num_steps)
     epochs = int(FLAGS.epochs)
+    restart_cycle = int(FLAGS.restart_from_cycle)
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -227,14 +228,23 @@ if __name__ == "__main__":
 
 
     # Load active set from cycle 0 and point to right model
-    train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
-    train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
+    if restart_cycle==0:
+        train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
+        train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
+    else:
+        train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(restart_cycle) + '/'
+        # Get actual checkpoint model
+        with open(train_dir+'checkpoint','r') as cfile:
+            line = cfile.readlines()
+            train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
+
+
     active_set = []
     with open(train_dir + 'active_set.txt', 'r') as f:
         for line in f:
             active_set.append(int(line))
 
-    for cycle in range(1,num_cycles+1):
+    for cycle in range(restart_cycle+1,num_cycles+1):
 
 
         #### Evaluation of trained model on unlabeled set to obtain data for selection
@@ -318,7 +328,9 @@ if __name__ == "__main__":
             indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
-                indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=num_videos)
+                indices = sel.select_entropy_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+            elif ('Lst' in name):
+                indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
             elif ('TCFP' in name):
                 indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
 
