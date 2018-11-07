@@ -66,13 +66,14 @@ flags.DEFINE_string('pipeline_config_path',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
 #flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
-flags.DEFINE_string('name', 'LstxVid',
+flags.DEFINE_string('name', 'TCFNxVid',
+#flags.DEFINE_string('name', 'RndxVidFrom0',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
 flags.DEFINE_string('epochs','10',
                     'Number of epochs')
-flags.DEFINE_string('restart_from_cycle','2',
+flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
 flags.DEFINE_string('run','1',
                     'Number of current run')
@@ -270,7 +271,7 @@ if __name__ == "__main__":
 
                 # For TCFP, we need to get detections for pretty much every frame,
                 # as not candidates can may be used to support candidates
-                if ('TCFP' in name):
+                if ('TCFP' in name) or ('TCFN' in name):
                     unlabeled_set = [i for i in range(len(dataset))]
 
                 print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
@@ -333,6 +334,9 @@ if __name__ == "__main__":
                 indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
             elif ('TCFP' in name):
                 indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+            elif ('TCFN' in name):
+                indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+
 
         active_set.extend(indices)
 
