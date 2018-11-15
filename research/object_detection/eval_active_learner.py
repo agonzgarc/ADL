@@ -53,8 +53,9 @@ flags.DEFINE_string('pipeline_config_path',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
 #flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
-flags.DEFINE_string('name', 'RndxVidFrom0',
-#flags.DEFINE_string('name', 'TCFPAllVideos',
+#flags.DEFINE_string('name', 'RndxVidFrom0',
+#flags.DEFINE_string('name','LstxVid',
+flags.DEFINE_string('name', 'TCFNxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -154,7 +155,7 @@ if __name__ == "__main__":
     # Run evaluation once only
     eval_config.max_evals = 1
 
-    cycle = 9
+    cycle = 1
 
     train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
     future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'

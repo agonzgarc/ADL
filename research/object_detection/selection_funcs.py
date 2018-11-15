@@ -639,7 +639,7 @@ def select_TCFP_per_video(dataset,videos,data_dir,active_set,detections):
 def select_TCFN_per_video(dataset,videos,data_dir,active_set,detections):
 
     # Selector configuration
-    threshold_track = 0.5
+    threshold_track = 0.7
     threshold_rem_track = 0.5
     num_frames_to_track = 3
 
@@ -802,8 +802,7 @@ def select_TCFN_per_video(dataset,videos,data_dir,active_set,detections):
                 num_good_dets = num_good_dets_video[frame_counter]
 
                 for idx_det in range(num_good_dets):
-                    if len(bboxes_video) == 0:
-                        pdb.set_trace()
+                    #if len(bboxes_video) == 0:
                     bboxes = bboxes_video.pop(0)
                     local_dets[idx].append(convert_boxes_xy(bboxes[0]).reshape((1,4)))
 
@@ -842,38 +841,40 @@ def select_TCFN_per_video(dataset,videos,data_dir,active_set,detections):
                 local_dets_i = np.asarray(local_dets[idx]).reshape(len(local_dets[idx]),4)
 
                 ## Visualize track and detections
-                curr_im = Image.open(frame_paths[idx])
-                im_w,im_h = curr_im.size
-                if tracked_dets[idx]:
-                    vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(tracked_dets_i,im_w,im_h))
-                if local_dets[idx]:
-                    vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(local_dets_i,im_w,im_h),color='green')
-                curr_im.show()
+                #curr_im = Image.open(frame_paths[idx])
+                #im_w,im_h = curr_im.size
+                #if tracked_dets[idx]:
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(tracked_dets_i,im_w,im_h))
+                #if local_dets[idx]:
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(local_dets_i,im_w,im_h),color='green')
+                #curr_im.show()
 
-                ovTr = np_box_ops.iou(tracked_dets_i,local_dets_i)
+                if len(tracked_dets_i) > 0:
+                    if len(local_dets_i) == 0:
+                        rem_tracks = tracked_dets_i
+                    else:
+                        ovTr = np_box_ops.iou(tracked_dets_i,local_dets_i)
+                        rem_tracks = tracked_dets_i[np.max(ovTr,1)<threshold_track]
 
-                rem_tracks = tracked_dets_i[np.max(ovTr,1)<threshold_track]
+                    #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(rem_tracks,im_w,im_h),color='orange')
+                    #curr_im.show()
+                    scores = []
+                    if len(rem_tracks) > 0:
+                        while len(rem_tracks)>1:
+                            # Process first of remaining tracks
+                            curr_track = rem_tracks[0].reshape(1,4)
+                            rem_tracks = rem_tracks[1:].reshape(len(rem_tracks)-1,4)
+                            ovTr = np_box_ops.iou(curr_track,rem_tracks)
+                            track_group = ovTr > threshold_rem_track
+                            scores.append(np.sum(track_group))
+                            # Remove group from rem_tracks
+                            rem_tracks[(track_group == False)[0]]
 
-                vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(rem_tracks,im_w,im_h),color='orange')
-                curr_im.show()
-                scores = []
-                if len(rem_tracks) > 0:
-                    pdb.set_trace()
-                    while len(rem_tracks)>1:
-                        # Process first of remaining tracks
-                        curr_track = rem_tracks[0].reshape(1,4)
-                        rem_tracks = rem_tracks[1:].reshape(len(rem_tracks)-1,4)
-                        ovTr = np_box_ops.iou(curr_track,rem_tracks)
-                        track_group = ovTr > threshold_rem_track
-                        scores.append(np.sum(track_group))
-                        # Remove group from rem_tracks
-                        rem_tracks[(track_group == False)[0]]
+                        if len(rem_tracks) == 1:
+                            scores.append(1)
 
-                    if len(rem_tracks) == 1:
-                        scores.append(1)
-
-                    # Final FN score of frame is...
-                    tcfn_scores[idx] = np.mean(scores)
+                        # Final FN score of frame is...
+                        tcfn_scores[idx] = np.mean(scores)
 
             ## Select frames that achieve minimum
             idx_max = np.where(tcfn_scores == np.max(tcfn_scores))

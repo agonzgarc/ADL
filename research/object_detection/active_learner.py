@@ -67,7 +67,7 @@ flags.DEFINE_string('pipeline_config_path',
                     'file. If provided, other configs are ignored')
 #flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
 flags.DEFINE_string('name', 'TCFNxVid',
-#flags.DEFINE_string('name', 'RndxVidFrom0',
+#flags.DEFINE_string('name','LstxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -256,8 +256,8 @@ if __name__ == "__main__":
             if os.path.exists(eval_train_dir + 'detections.dat'):
                 with open(eval_train_dir + 'detections.dat','rb') as infile:
                 ###### pdb remove latinq
-                    #detected_boxes = pickle.load(infile)
-                    detected_boxes = pickle.load(infile,encoding='latin1')
+                    detected_boxes = pickle.load(infile)
+                    #detected_boxes = pickle.load(infile,encoding='latin1')
             else:
 
                 # Get unlabeled set
