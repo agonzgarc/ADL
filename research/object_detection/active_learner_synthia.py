@@ -311,6 +311,9 @@ if __name__ == "__main__":
                 indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
             elif ('TCFP' in name):
                 indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+            elif ('TCFN' in name):
+                indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+
 
         active_set.extend(indices)
 
