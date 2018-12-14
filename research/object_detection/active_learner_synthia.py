@@ -89,7 +89,7 @@ FLAGS = flags.FLAGS
 # pipeline_file
 data_info = {'data_dir': FLAGS.data_dir,
           'label_map_path': './data/synthia_label_map.pbtxt',
-          'set': 'train'}
+          'set': 'train_FullTrainxVid'}
 
 # Harcoded keys to retrieve metrics
 #keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/car'
@@ -215,7 +215,7 @@ if __name__ == "__main__":
 
 
     # Load active set from cycle 0 and point to right model
-    train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
+    train_dir = FLAGS.train_dir + 'Syn-R' + str(run_num) + 'cycle0/'
     train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
     active_set = []
    # with open(train_dir + 'active_set.txt', 'r') as f:
@@ -302,8 +302,8 @@ if __name__ == "__main__":
         # Budget for each cycle is the number of videos (0.5% of train set)
         if ('Rnd' in name):
             #indices = select_random_video(dataset,videos,active_set)
-            #indices = sel.select_full_dataset(dataset)
-            indices = sel.select_random_video(dataset,videos,active_set)
+            indices = sel.select_full_dataset(dataset)
+            #indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
                 indices = sel.select_entropy_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)

@@ -70,7 +70,7 @@ def augment_to_track(dataset,videos,unlabeled_set,num_neighbors=3):
     return aug_unlabeled_set
 
 
-
+# This is very slow, doing it offline and saving it into special tfrecord
 def select_full_dataset_per_video(dataset,videos):
 
     indices = []
@@ -317,6 +317,53 @@ def select_entropy_video(dataset,videos,active_set,detections):
                 indices.append(frames[idxR])
             #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
         return indices
+
+
+def select_entropy_detections_video(dataset,videos,active_set,detections):
+
+        indices = []
+
+        # We have detections only for the labeled dataset, be careful with indexing
+        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+        predictions = detections['scores']
+
+        thresh_detection = 0.5
+
+        for v in videos:
+
+            # Select frames in current video
+            frames = [f['idx'] for f in dataset if f['video'] == v]
+
+            # Get only those that are not labeled
+            frames = [f for f in frames if f in unlabeled_set]
+
+            # If all frames of video are in active set, ignore video
+            if len(frames) > 0:
+                # Extract corresponding predictions
+                det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+
+                # Compute average frame confidence
+                avg_conf = []
+                for df in det_frames:
+                    sel_dets = df[df > thresh_detection]
+                    if len(sel_dets) > 0:
+                        acf = sel_dets.mean()
+                    else:
+                        acf = np.inf
+                    avg_conf.append(acf)
+
+                avg_conf = np.asarray(avg_conf)
+                # Select frames that achieve minimum
+                idx_min = np.where(avg_conf == np.min(avg_conf))
+                idx_sel = np.random.choice(idx_min[0])
+
+                indices.append(frames[idx_sel])
+            #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
+        return indices
+
+
 
 def select_least_confident_video(dataset,videos,active_set,detections):
 
