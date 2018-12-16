@@ -52,13 +52,12 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-#flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
-flags.DEFINE_string('name', 'RndxVidFrom0',
+flags.DEFINE_string('name', 'Ent-FineTuning-Prop',
 #flags.DEFINE_string('name', 'TCFPAllVideos',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
-flags.DEFINE_string('restart_from_cycle','0',
+flags.DEFINE_string('restart_from_cycle','1',
                     'Cycle from which we want to restart training, if any')
 flags.DEFINE_string('run','1',
                     'Number of current run')
@@ -77,8 +76,8 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
+          #'set': 'test_75K_clean'}
           'set': 'train_150K_clean'}
-          #'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -159,44 +158,57 @@ if __name__ == "__main__":
     train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
     future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
 
-    while True:
+    print('train_dir: ', train_dir)
+    print('future_train_dir: ',future_train_dir)
+    #pdb.set_trace()
+    
+    #while True:
         #### Evaluation of trained model on test set to record performance
-        eval_dir = train_dir + 'eval/'
+    eval_dir = train_dir + 'eval/'
 
         # Input dict function for eval is always the same
-        def get_next_eval(config):
-           return dataset_builder.make_initializable_iterator(
-               dataset_builder.build(config)).get_next()
+    def get_next_eval(config):
+       return dataset_builder.make_initializable_iterator(
+           dataset_builder.build(config)).get_next()
 
-        # Restore eval configuration on test
-        eval_config.num_examples = num_eval_frames
-        eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
+    # Restore eval configuration on test
+    eval_config.num_examples = num_eval_frames
+    eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
 
-        # Initialize input dict again (necessary?)
-        create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
+    # Initialize input dict again (necessary?)
+    create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
 
-        graph_rewriter_fn = None
-        if 'graph_rewriter_config' in configs:
-            graph_rewriter_fn = graph_rewriter_builder.build(
-                configs['graph_rewriter_config'], is_training=False)
+    graph_rewriter_fn = None
+    if 'graph_rewriter_config' in configs:
+        graph_rewriter_fn = graph_rewriter_builder.build(
+            configs['graph_rewriter_config'], is_training=False)
 
-        # Need to reset graph for evaluation
-        tf.reset_default_graph()
+    # Need to reset graph for evaluation
+    tf.reset_default_graph()
 
-        metrics,_,_ = evaluator.evaluate(
-          create_eval_input_dict_fn,
-          eval_model_fn,
-          eval_config,
-          categories,
-          train_dir,
-          eval_dir,
-          graph_hook_fn=graph_rewriter_fn)
+    metrics,_,_ = evaluator.evaluate(
+      create_eval_input_dict_fn,
+      eval_model_fn,
+      eval_config,
+      categories,
+      train_dir,
+      eval_dir,
+      graph_hook_fn=graph_rewriter_fn)
 
+    aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+    performances['R'+str(run_num)+'c'+str(cycle)]= aps
+
+        # Write current performance
+    json_str = json.dumps(performances)
+    f = open(output_file,'w')
+    f.write(json_str)
+    f.close()
 
         # Done with previous cycle
-        if os.path.exists(future_train_dir):
-
-            # Make sure we save the very last one, evaluate one last time
+    while os.path.exists(future_train_dir):
+            cycle +=1
+            train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
+            # Need to reset graph for evaluation
             tf.reset_default_graph()
 
             metrics,_,_ = evaluator.evaluate(
@@ -209,8 +221,6 @@ if __name__ == "__main__":
               graph_hook_fn=graph_rewriter_fn)
 
             aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
-
-
             performances['R'+str(run_num)+'c'+str(cycle)]= aps
 
             # Write current performance
@@ -218,9 +228,9 @@ if __name__ == "__main__":
             f = open(output_file,'w')
             f.write(json_str)
             f.close()
-
-            cycle +=1
-            train_dir = future_train_dir
             future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
+
+
+    
 
 

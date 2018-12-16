@@ -191,7 +191,7 @@ def save_tf_record(data_info,indices):
           with tf.gfile.GFile(path, 'r') as fid:
             xml_str = fid.read()
           xml = etree.fromstring(xml_str)
-          data = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']
+          data = dataset_util.recursive_parse_xml_to_dict(xml)['annotation']          
 
           tf_example = dict_to_tf_example(data, data_info['data_dir'], label_map_dict,
                                           FLAGS.ignore_difficult_instances)

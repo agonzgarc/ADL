@@ -44,6 +44,7 @@ def filter_variables(variables, filter_regex_list, invert=False):
   kept_vars = []
   variables_to_ignore_patterns = list(filter(None, filter_regex_list))
   for var in variables:
+    print("var.op.name: " + var.op.name )
     add = True
     for pattern in variables_to_ignore_patterns:
       if re.match(pattern, var.op.name):

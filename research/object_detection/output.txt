@@ -1,0 +1,2013 @@
+Using Tensorflow 1.8.0
+Partition of a set of 776569 objects. Total size = 116408200 bytes.
+ Index  Count   %     Size   % Cumulative  % Kind (class / dict of class)
+     0 368758  47 42420584  36  42420584  36 str
+     1 176060  23 16041112  14  58461696  50 tuple
+     2  26293   3 10229208   9  68690904  59 unicode
+     3   2635   0  7384072   6  76074976  65 dict of module
+     4  41873   5  5359744   5  81434720  70 types.CodeType
+     5   7280   1  5278592   5  86713312  74 dict (no owner)
+     6  41410   5  4969200   4  91682512  79 function
+     7   4101   1  3703648   3  95386160  82 type
+     8   4101   1  3681912   3  99068072  85 dict of type
+     9  10123   1  2480792   2 101548864  87 list
+<1164 more rows. Type e.g. '_.more' to view.>
+Unlabeled frames in the dataset: 2494
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n01503061
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+out of scope class=  n02118333
+object class is not among the target classes
+('checkpoint_dir = ', '/datatmp/Experiments/Javad/tf/model/R1cycle0/')
+Scores and tpfp per class label: 0
+[1. 1. 0. ... 0. 0. 0.]
+[9.98491287e-01 9.83264983e-01 1.38172340e-02 ... 3.95250254e-06
+ 3.69585928e-06 3.65959863e-06]
+AP
+0.856741093984555
+Scores and tpfp per class label: 1
+[0. 0. 0. ... 0. 0. 0.]
+[2.33459705e-03 1.62047124e-03 1.19727256e-03 ... 1.97858367e-06
+ 1.94694667e-06 1.93378946e-06]
+AP
+0.9323897410426025
+Done computing detections in training set
+Selecting frame 0 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00265069 with idx 2409
+000011.JPEG
+Selecting frame 11 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00265066 with idx 2611
+000022.JPEG
+Selecting frame 132 from video ILSVRC2015_VID_train_0002/ILSVRC2015_train_00528000 with idx 807
+000132.JPEG
+Selecting frame 7 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00119045 with idx 2670
+000007.JPEG
+Selecting frame 2 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00119044 with idx 73
+000019.JPEG
+Selecting frame 53 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00225000 with idx 642
+000081.JPEG
+Selecting frame 3 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00119004 with idx 3175
+000014.JPEG
+Selecting frame 4 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00265034 with idx 1517
+000004.JPEG
+Selecting frame 120 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00071014 with idx 2545
+000131.JPEG
+Selecting frame 3 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00265015 with idx 2388
+000024.JPEG
+Selecting frame 115 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00010005 with idx 2201
+000139.JPEG
+Selecting frame 97 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00119017 with idx 1225
+000108.JPEG
+Selecting frame 73 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00119032 with idx 1076
+000101.JPEG
+Selecting frame 56 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00010032 with idx 3059
+000067.JPEG
+Selecting frame 78 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00010025 with idx 273
+000078.JPEG
+Selecting frame 34 from video ILSVRC2015_VID_train_0003/ILSVRC2015_train_01118003 with idx 2787
+000045.JPEG
+Selecting frame 86 from video ILSVRC2015_VID_train_0003/ILSVRC2015_train_00897004 with idx 554
+000112.JPEG
+Selecting frame 21 from video ILSVRC2015_VID_train_0003/ILSVRC2015_train_00897000 with idx 404
+000021.JPEG
+Selecting frame 0 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00272029 with idx 0
+000000.JPEG
+Selecting frame 16 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00265030 with idx 2660
+000027.JPEG
+Selecting frame 9 from video ILSVRC2015_VID_train_0000/ILSVRC2015_train_00071003 with idx 3092
+000022.JPEG
+Selecting frame 210 from video ILSVRC2015_VID_train_0001/ILSVRC2015_train_00265007 with idx 1498
+000221.JPEG
+GC hook object was referred to from somebody!
+Partition of a set of 1594291 objects. Total size = 202394736 bytes.
+ Index  Count   %     Size   % Cumulative  % Kind (class / dict of class)
+     0 462052  29 45635688  23  45635688  23 tuple
+     1 383759  24 44063920  22  89699608  44 str
+     2  35925   2 13736824   7 103436432  51 unicode
+     3  59558   4 10461680   5 113898112  56 list
+     4   9156   1  9595488   5 123493600  61 dict of tensorflow.python.framework.ops.Tensor
+     5   7612   0  9051808   4 132545408  65 dict (no owner)
+     6   7854   0  8230992   4 140776400  70 dict of tensorflow.python.framework.ops.Operation
+     7 341655  21  8199720   4 148976120  74 int
+     8   2647   0  7415080   4 156391200  77 dict of module
+     9  42114   3  5390592   3 161781792  80 types.CodeType
+<1233 more rows. Type e.g. '_.more' to view.>
+Filename: /datatmp/Experiments/Javad/ADL/research/object_detection/selection_funcs.py
+
+Line #    Mem usage    Increment   Line Contents
+================================================
+   556 2562.750 MiB 2562.750 MiB   @profile
+   557                             def selectFpPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
+   558                             	
+   559 2562.750 MiB    0.000 MiB           data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
+   560 2562.750 MiB    0.000 MiB   	score_thresh=0.5
+   561 2562.750 MiB    0.000 MiB   	iou_thresh=0.5 	    
+   562 2562.750 MiB    0.000 MiB           indices = []
+   563                             
+   564 2562.750 MiB    0.000 MiB           aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+   565 2562.750 MiB    0.000 MiB           unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+   566                             
+   567                                     # We have detections only for the labeled dataset, be careful with indexing
+   568                                     #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+   569                             
+   570 2562.750 MiB    0.000 MiB   	BOXES = detections['boxes'] 
+   571 2562.750 MiB    0.000 MiB   	SCORES= detections['scores']
+   572 2562.750 MiB    0.000 MiB   	gt_boxes = groundtruth_boxes['boxes']
+   573                             
+   574 2562.750 MiB    0.000 MiB           stat_data={}
+   575 2562.750 MiB    0.000 MiB           stat_data['videos_wo_FP']=[]
+   576 2562.750 MiB    0.000 MiB           stat_data['FP_info']=[]
+   577                             
+   578 2562.898 MiB    0.000 MiB           for v in videos:            
+   579                                     
+   580                                         # Select frames in current video
+   581 2562.898 MiB    0.000 MiB               frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
+   582                                         
+   583                             	    # Get only those that are not labeled
+   584                                         #frames = [f for f in frames if ]	    
+   585                             
+   586                             	    #pdb.set_trace()
+   587                             
+   588                                         # If all frames of video are in active set, ignore video
+   589 2562.898 MiB    0.000 MiB               if len(frames) > 0:
+   590 2562.898 MiB    0.000 MiB   	       j=0 	       
+   591 2562.898 MiB    0.000 MiB   	       FP = np.zeros((len(frames)))
+   592 2562.898 MiB    0.000 MiB                  for f in frames:
+   593 2562.898 MiB    0.000 MiB                       anno_ind=unlabeled_set.index(f)
+   594 2562.898 MiB    0.000 MiB     		    ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+   595 2562.898 MiB    0.000 MiB   		    boxes=np.array(BOXES[anno_ind])[ind,:]
+   596 2562.898 MiB    0.000 MiB   		    if boxes.any(): # if the frame has detections with high score
+   597 2562.898 MiB    0.000 MiB   		       if gt_boxes[anno_ind].any():
+   598                                               	  # Compute IOU between gt and detected bbox 
+   599 2562.898 MiB    0.000 MiB   		  	  iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+   600 2562.898 MiB    0.000 MiB   		  	  iou=iou_mat.max(axis=0)
+   601                             		  	  # identify detections with IOU lower than threshold 			
+   602 2562.898 MiB    0.000 MiB   		  	  low_iou=iou<iou_thresh 
+   603                             		  	  # Check if there are multiple detections for single groundtruth box
+   604 2562.898 MiB    0.000 MiB   	          	  max_thresh=np.zeros(len(iou))
+   605 2562.898 MiB    0.000 MiB   		  	  temp=iou_mat.argmax(axis=1) 
+   606 2562.898 MiB    0.000 MiB   		  	  max_thresh[temp]=1;
+   607                                                       #pdb.set_trace()
+   608 2562.898 MiB    0.000 MiB   	          	  false_pos=low_iou | np.logical_not(max_thresh)
+   609 2562.898 MiB    0.000 MiB   		  	  FP[j]=sum(false_pos)
+   610                             		       else:
+   611 2562.898 MiB    0.000 MiB   		          FP[j]=len(boxes) 		  
+   612 2562.898 MiB    0.000 MiB                       j+=1
+   613 2562.898 MiB    0.000 MiB                  if sum(FP)==0:   # case there is no False Positive in this video
+   614 2562.898 MiB    0.000 MiB                     idx_sel=random.randint(0,len(FP)-1)
+   615 2562.898 MiB    0.000 MiB                     stat_data['videos_wo_FP'].append({'video':v})    
+   616                             	       else:
+   617 2562.898 MiB    0.000 MiB                     idx_max = np.where(FP == max(FP))
+   618 2562.898 MiB    0.148 MiB                     idx_sel = np.random.choice(idx_max[0])		
+   619                             
+   620 2562.898 MiB    0.000 MiB   	       indices.append(frames[idx_sel])
+   621 2562.898 MiB    0.000 MiB                  print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
+   622 2562.898 MiB    0.000 MiB   	       print(dataset[frames[idx_sel]]['filename'])
+   623                                            #stat_data['FP_info'].append({'video':v,'frame':frames[idx_sel],'FP_loc':idx_sel,'video_length':len(frames)})
+   624                             	    
+   625                             
+   626                                         #========================visualization to check FPs================================
+   627                             	    """
+   628                                         for f in frames:
+   629                                          for d in dataset:
+   630                                           if d['idx']==f and d['video']==v:
+   631                                            IndInDs=dataset.index(d)
+   632                                            anno_ind=unlabeled_set.index(f)                                          
+   633                                            video_dir = os.path.join(data_dir,'Data','VID','train',v)
+   634                                            curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
+   635                                            im_w,im_h = curr_im.size
+   636                                            vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
+   637                                            ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+   638                             	       boxes=np.array(BOXES[anno_ind])[ind,:]
+   639                                            vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
+   640                                            curr_im.save(data_dir+'/FP_samples'+'/FP_'+str(int(FP[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
+   641                             	    """
+   642                                         #==================================================================================
+   643                             	    #pdb.set_trace()
+   644                             
+   645                                     #output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FP_stat_data_cycle'+str(cycle)+'.json'
+   646                                     #with open(output_file, 'w') as fp:
+   647                                     #     json.dump(stat_data, fp)
+   648 2562.953 MiB    0.055 MiB           h = hpy()
+   649 2689.355 MiB  126.402 MiB           print(h.heap())
+   650 2689.355 MiB    0.000 MiB   	quit()
+   651                                     return indices
+
+
+Filename: /datatmp/Experiments/Javad/ADL/research/object_detection/evaluator_al.py
+
+Line #    Mem usage    Increment   Line Contents
+================================================
+   152  291.207 MiB  291.207 MiB   @profile
+   153                             def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
+   154                                          checkpoint_dir, eval_dir, graph_hook_fn=None, evaluator_list=None):
+   155                               """Evaluation function for detection models.
+   156                             
+   157                               Args:
+   158                                 create_input_dict_fn: a function to create a tensor input dictionary.
+   159                                 create_model_fn: a function that creates a DetectionModel.
+   160                                 eval_config: a eval_pb2.EvalConfig protobuf.
+   161                                 categories: a list of category dictionaries. Each dict in the list should
+   162                                             have an integer 'id' field and string 'name' field.
+   163                                 checkpoint_dir: directory to load the checkpoints to evaluate from.
+   164                                 eval_dir: directory to write evaluation metrics summary to.
+   165                                 graph_hook_fn: Optional function that is called after the training graph is
+   166                                   completely built. This is helpful to perform additional changes to the
+   167                                   training graph such as optimizing batchnorm. The function should modify
+   168                                   the default graph.
+   169                                 evaluator_list: Optional list of instances of DetectionEvaluator. If not
+   170                                   given, this list of metrics is created according to the eval_config.
+   171                             
+   172                               Returns:
+   173                                 metrics: A dictionary containing metric names and values from the latest
+   174                                   run.
+   175                               """
+   176                             
+   177  291.223 MiB    0.016 MiB     model = create_model_fn()
+   178                             
+   179  291.223 MiB    0.000 MiB     if eval_config.ignore_groundtruth and not eval_config.export_path:
+   180                                 logging.fatal('If ignore_groundtruth=True then an export_path is '
+   181                                               'required. Aborting!!!')
+   182                             
+   183  291.223 MiB    0.000 MiB     tensor_dict, losses_dict, prediction_dict= _extract_predictions_and_losses(
+   184  291.223 MiB    0.000 MiB         model=model,
+   185  291.223 MiB    0.000 MiB         create_input_dict_fn=create_input_dict_fn,
+   186  378.742 MiB   87.520 MiB         ignore_groundtruth=eval_config.ignore_groundtruth)
+   187                             
+   188 6095.406 MiB -1193772.832 MiB     def _process_batch(tensor_dict, sess, batch_index, counters,
+   189  378.742 MiB    0.000 MiB                        losses_dict=None):
+   190                                 """Evaluates tensors in tensor_dict, losses_dict and visualizes examples.
+   191                             
+   192                                 This function calls sess.run on tensor_dict, evaluating the original_image
+   193                                 tensor only on the first K examples and visualizing detections overlaid
+   194                                 on this original_image.
+   195                             
+   196                                 Args:
+   197                                   tensor_dict: a dictionary of tensors
+   198                                   sess: tensorflow session
+   199                                   batch_index: the index of the batch amongst all batches in the run.
+   200                                   counters: a dictionary holding 'success' and 'skipped' fields which can
+   201                                     be updated to keep track of number of successful and failed runs,
+   202                                     respectively.  If these fields are not updated, then the success/skipped
+   203                                     counter values shown at the end of evaluation will be incorrect.
+   204                                   losses_dict: Optional dictonary of scalar loss tensors.
+   205                             
+   206                                 Returns:
+   207                                   result_dict: a dictionary of numpy arrays
+   208                                   result_losses_dict: a dictionary of scalar losses. This is empty if input
+   209                                     losses_dict is None.
+   210                                 """
+   211 6095.406 MiB -1193773.070 MiB       try:
+   212 6095.406 MiB -1193773.070 MiB         if not losses_dict:
+   213                                     losses_dict = {}
+   214 6095.406 MiB -1191007.098 MiB         result_dict, result_losses_dict, result_prediction_dict = sess.run([tensor_dict, losses_dict,prediction_dict])
+   215                                   #pdb.set_trace()
+   216 6095.406 MiB -1195550.574 MiB         counters['success'] += 1
+   217                                 except tf.errors.InvalidArgumentError:
+   218                                   logging.info('Skipping image')
+   219                                   counters['skipped'] += 1
+   220                                   return {}, {}
+   221 6095.406 MiB -1195545.426 MiB       global_step = tf.train.global_step(sess, tf.train.get_global_step())
+   222 6095.406 MiB -1195550.551 MiB       if batch_index < eval_config.num_visualizations:
+   223 4217.531 MiB    0.000 MiB         tag = 'image-{}'.format(batch_index)
+   224 4217.531 MiB    0.000 MiB         eval_util.visualize_detection_results(
+   225 4217.531 MiB    0.000 MiB             result_dict,
+   226 4217.531 MiB    0.000 MiB             tag,
+   227 4217.531 MiB    0.000 MiB             global_step,
+   228 4217.531 MiB    0.000 MiB             categories=categories,
+   229 4217.531 MiB    0.000 MiB             summary_dir=eval_dir,
+   230 4217.531 MiB    0.000 MiB             export_dir=eval_config.visualization_export_dir,
+   231 4217.531 MiB    0.000 MiB             show_groundtruth=eval_config.visualize_groundtruth_boxes,
+   232 4217.531 MiB    0.000 MiB             groundtruth_box_visualization_color=eval_config.
+   233                                       groundtruth_box_visualization_color,
+   234 4217.531 MiB    0.000 MiB             min_score_thresh=eval_config.min_score_threshold,
+   235 4217.531 MiB    0.000 MiB             max_num_predictions=eval_config.max_num_boxes_to_visualize,
+   236 4217.531 MiB    0.000 MiB             skip_scores=eval_config.skip_scores,
+   237 4217.531 MiB    0.000 MiB             skip_labels=eval_config.skip_labels,
+   238 4217.531 MiB   77.301 MiB             keep_image_id_for_visualization_export=eval_config.
+   239                                       keep_image_id_for_visualization_export)
+   240 6095.406 MiB -1195550.551 MiB       return result_dict, result_losses_dict, result_prediction_dict
+   241                             
+   242  378.742 MiB    0.000 MiB     if graph_hook_fn: graph_hook_fn()
+   243                             
+   244  378.742 MiB    0.000 MiB     variables_to_restore = tf.global_variables()
+   245  378.742 MiB    0.000 MiB     global_step = tf.train.get_or_create_global_step()
+   246  378.742 MiB    0.000 MiB     variables_to_restore.append(global_step)
+   247                             
+   248  378.742 MiB    0.000 MiB     if eval_config.use_moving_averages:
+   249                                 variable_averages = tf.train.ExponentialMovingAverage(0.0)
+   250                                 variables_to_restore = variable_averages.variables_to_restore()
+   251  386.750 MiB    8.008 MiB     saver = tf.train.Saver(variables_to_restore)
+   252                             
+   253  938.988 MiB  552.238 MiB     def _restore_latest_checkpoint(sess):
+   254  939.547 MiB    0.559 MiB       latest_checkpoint = tf.train.latest_checkpoint(checkpoint_dir)
+   255 1469.266 MiB  529.719 MiB       saver.restore(sess, latest_checkpoint)
+   256                             
+   257  386.750 MiB    0.000 MiB     if not evaluator_list:
+   258  386.750 MiB    0.000 MiB       evaluator_list = get_evaluators(eval_config, categories)
+   259                             
+   260  386.750 MiB    0.000 MiB     print('checkpoint_dir = ',checkpoint_dir)
+   261  386.750 MiB    0.000 MiB     metrics,detections,groundtruths = eval_util.repeated_checkpoint_run(
+   262  386.750 MiB    0.000 MiB         tensor_dict=tensor_dict,
+   263  386.750 MiB    0.000 MiB         summary_dir=eval_dir,
+   264  386.750 MiB    0.000 MiB         evaluators=evaluator_list,
+   265  386.750 MiB    0.000 MiB         batch_processor=_process_batch,
+   266  386.750 MiB    0.000 MiB         checkpoint_dirs=[checkpoint_dir],
+   267  386.750 MiB    0.000 MiB         variables_to_restore=None,
+   268  386.750 MiB    0.000 MiB         restore_fn=_restore_latest_checkpoint,
+   269  386.750 MiB    0.000 MiB         num_batches=eval_config.num_examples,
+   270  386.750 MiB    0.000 MiB         eval_interval_secs=eval_config.eval_interval_secs,
+   271  386.750 MiB    0.000 MiB         max_number_of_evaluations=(1 if eval_config.ignore_groundtruth else
+   272                                                              eval_config.max_evals
+   273  386.750 MiB    0.000 MiB                                    if eval_config.max_evals else None),
+   274  386.750 MiB    0.000 MiB         master=eval_config.eval_master,
+   275  386.750 MiB    0.000 MiB         save_graph=eval_config.save_graph,
+   276  386.750 MiB    0.000 MiB         save_graph_dir=(eval_dir if eval_config.save_graph else ''),
+   277 2562.547 MiB -3532.859 MiB         losses_dict=losses_dict)
+   278                             
+   279 2562.547 MiB    0.000 MiB     return metrics,detections,groundtruths
+
+

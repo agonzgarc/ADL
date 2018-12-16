@@ -204,8 +204,10 @@ class TfExampleDecoder(data_decoder.DataDecoder):
       additional_channel_image = slim_example_decoder.Image(
           image_key='image/additional_channels/encoded',
           format_key='image/format',
-          channels=1,
-          repeated=True)
+          channels=1)
+#-----------------------------------------------------------
+          #repeated=True)
+#-----------------------------------------------------------
     self.items_to_handlers = {
         fields.InputDataFields.image:
             image,

@@ -182,6 +182,7 @@ class ObjectDetectionEvaluatorAL(DetectionEvaluator):
       ValueError: On adding groundtruth for an image more than once. Will also
         raise error if instance masks are not in groundtruth dictionary.
     """
+
     if image_id in self._image_ids:
       raise ValueError('Image with id {} already added.'.format(image_id))
 

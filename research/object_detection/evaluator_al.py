@@ -149,7 +149,7 @@ def get_evaluators(eval_config, categories):
         EVAL_METRICS_CLASS_DICT[eval_metric_fn_key](categories=categories))
   return evaluators_list
 
-
+#@profile
 def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
              checkpoint_dir, eval_dir, graph_hook_fn=None, evaluator_list=None):
   """Evaluation function for detection models.
@@ -257,6 +257,7 @@ def evaluate(create_input_dict_fn, create_model_fn, eval_config, categories,
   if not evaluator_list:
     evaluator_list = get_evaluators(eval_config, categories)
 
+  print('checkpoint_dir = ',checkpoint_dir)
   metrics,detections,groundtruths = eval_util.repeated_checkpoint_run(
       tensor_dict=tensor_dict,
       summary_dir=eval_dir,
