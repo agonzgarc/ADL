@@ -19,7 +19,7 @@ import imp
 import pickle
 
 from object_detection import trainer
-from object_detection import selection_funcs as sel
+from object_detection import selection_funcs_synthia as sel
 from object_detection import evaluator_al as evaluator
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
@@ -89,7 +89,7 @@ FLAGS = flags.FLAGS
 # pipeline_file
 data_info = {'data_dir': FLAGS.data_dir,
           'label_map_path': './data/synthia_label_map.pbtxt',
-          'set': 'train_FullTrainxVid'}
+          'set': 'train'}
 
 # Harcoded keys to retrieve metrics
 #keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/car'
@@ -188,6 +188,7 @@ if __name__ == "__main__":
     run_num = int(FLAGS.run)
     num_steps = str(train_config.num_steps)
     epochs = int(FLAGS.epochs)
+    restart_cycle = int(FLAGS.restart_from_cycle)
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -215,15 +216,23 @@ if __name__ == "__main__":
 
 
     # Load active set from cycle 0 and point to right model
-    train_dir = FLAGS.train_dir + 'Syn-R' + str(run_num) + 'cycle0/'
-    train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
+
+    if restart_cycle==0:
+        train_dir = FLAGS.train_dir + 'Syn-R' + str(run_num) + 'cycle0/'
+        train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
+    else:
+        train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(restart_cycle) + '/'
+        # Get actual checkpoint model
+        with open(train_dir+'checkpoint','r') as cfile:
+            line = cfile.readlines()
+            train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
+
     active_set = []
-   # with open(train_dir + 'active_set.txt', 'r') as f:
-        #for line in f:
-            #active_set.append(int(line))
+    with open(train_dir + 'active_set.txt', 'r') as f:
+        for line in f:
+            active_set.append(int(line))
 
-    for cycle in range(1,num_cycles+1):
-
+    for cycle in range(restart_cycle+1,num_cycles+1):
 
         #### Evaluation of trained model on unlabeled set to obtain data for selection
 
