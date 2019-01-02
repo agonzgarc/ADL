@@ -57,7 +57,7 @@ def tracker_full_video(hp, run, design, frame_name_list_video, pos_x_video,
     filename = tf.placeholder(tf.string, [], name='filename')
     image_file = tf.read_file(filename)
     # Decode the image as a JPEG file, this will turn it into a Tensor
-    image = tf.image.decode_jpeg(image_file)
+    image = tf.image.decode_image(image_file, channels=3)
     image = 255.0 * tf.image.convert_image_dtype(image, tf.float32)
     frame_sz = tf.shape(image)
     # used to pad the crops
@@ -135,7 +135,7 @@ def tracker_full_video(hp, run, design, frame_name_list_video, pos_x_video,
             # save first frame position (from ground-truth)
             bboxes = np.zeros((num_frames,4))
             bboxes[0,:] = pos_x-target_w/2, pos_y-target_h/2, target_w, target_h
-
+            
             image_, templates_z_ = sess.run([image, templates_z], feed_dict={pos_x_ph: pos_x, pos_y_ph: pos_y, z_sz_ph: z_sz, filename: frame_name_list[0]})
 
             #image_, templates_z_ = sess.run([image, templates_z], feed_dict={
@@ -207,8 +207,8 @@ def tracker_full_video(hp, run, design, frame_name_list_video, pos_x_video,
 
 
         # Finish off the filename queue coordinator.
-        #coord.request_stop()
-        #coord.join(threads)
+        coord.request_stop()
+        coord.join(threads)
     elapsed_time = time.time() - t_start
     print("Video processed in:{:.2f}".format(elapsed_time))
     plt.close('all')
