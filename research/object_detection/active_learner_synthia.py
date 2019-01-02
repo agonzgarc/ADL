@@ -25,7 +25,8 @@ from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
-from object_detection.save_subset_imagenetvid_tf_record import save_tf_record
+from object_detection.save_subset_synthia_tf_record import save_tf_record
+#from object_detection.save_subset_imagenetvid_tf_record import save_tf_record
 from object_detection.utils import label_map_util
 from object_detection.utils import np_box_ops
 from object_detection.utils import np_box_list
@@ -35,8 +36,7 @@ from pycocotools import mask
 
 from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
-from guppy import hpy
-from memory_profiler import memory_usage
+
 
 tf.logging.set_verbosity(tf.logging.INFO)
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -59,16 +59,13 @@ flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/che
                     'Directory to save the checkpoints and training summaries.')
 flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/performances/',
                     'Directory to save performance json files.')
-flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
+flags.DEFINE_string('data_dir', '/home/abel/DATA/Synthia/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_synthia-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-#flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
-flags.DEFINE_string('name', 'TCFNxVid',
-#flags.DEFINE_string('name','LstxVid',
+flags.DEFINE_string('name', 'Syn-RndxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -76,7 +73,7 @@ flags.DEFINE_string('epochs','10',
                     'Number of epochs')
 flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
-flags.DEFINE_string('run','10',
+flags.DEFINE_string('run','1',
                     'Number of current run')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
@@ -91,22 +88,17 @@ FLAGS = flags.FLAGS
 # This should be a custom name per method once we can overwrite fields in
 # pipeline_file
 data_info = {'data_dir': FLAGS.data_dir,
-          'annotations_dir':'Annotations',
-          'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
-          #'set': 'train_150K_clean_short'}
-          #'set':'train_shrinked'}
-          #'set': 'train_ALL_clean_short'}
-
+          'label_map_path': './data/synthia_label_map.pbtxt',
+          'set': 'train_FullTrainxVid'}
 
 # Harcoded keys to retrieve metrics
-keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
-keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02958343'
-keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02834778'
+#keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/car'
+#keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/pedestrian'
+#keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/bicycle'
 keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 
 
-def get_dataset(data_info):
+def get_dataset_synthia(data_info):
     """ Gathers information about the dataset given and stores it in a
     structure at the frame level.
     Args:
@@ -120,24 +112,14 @@ def get_dataset(data_info):
     path_file = os.path.join(data_info['data_dir'],'AL', data_info['set'] + '.txt')
     with open(path_file,'r') as pF:
         idx = 0
-        for line in pF:
-            # Separate frame path and clean annotation flag
-            split_line = line.split(' ')
-            # Remove trailing \n
-            verified = True if split_line[1][:-1] == '1' else False
-            path = split_line[0]
+        for path in pF:
             split_path = path.split('/')
-            filename = split_path[-1]
-            video = split_path[-3]+'/'+split_path[-2]
-            dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
+            filename = split_path[-1][:-1]
+            video = split_path[-4]+'/'+split_path[-3]
+            dataset.append({'idx':idx,'filename':filename,'video':video,'verified':True})
             idx+=1
     videos = set([d['video'] for d in dataset])
     return dataset,videos
-
-
-#def nms_detections(boxes,scores,labels,thresh_nms = 0.8):
-    #boxlist = np_box_list.BoxList(boxes)
-    #boxlist.add_field('scores',scores)
 
 def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
     detected_boxes = detections['boxes']
@@ -196,7 +178,7 @@ if __name__ == "__main__":
     eval_input_config = configs['eval_input_config']
 
     # Get info about full dataset
-    dataset,videos = get_dataset(data_info)
+    dataset,videos = get_dataset_synthia(data_info)
 
     num_videos = len(videos)
 
@@ -206,7 +188,6 @@ if __name__ == "__main__":
     run_num = int(FLAGS.run)
     num_steps = str(train_config.num_steps)
     epochs = int(FLAGS.epochs)
-    restart_cycle = int(FLAGS.restart_from_cycle)
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -234,23 +215,14 @@ if __name__ == "__main__":
 
 
     # Load active set from cycle 0 and point to right model
-    if restart_cycle==0:
-        train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
-        train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
-    else:
-        train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(restart_cycle) + '/'
-        # Get actual checkpoint model
-        with open(train_dir+'checkpoint','r') as cfile:
-            line = cfile.readlines()
-            train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
-
-
+    train_dir = FLAGS.train_dir + 'Syn-R' + str(run_num) + 'cycle0/'
+    train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
     active_set = []
-    with open(train_dir + 'active_set.txt', 'r') as f:
-        for line in f:
-            active_set.append(int(line))
+   # with open(train_dir + 'active_set.txt', 'r') as f:
+        #for line in f:
+            #active_set.append(int(line))
 
-    for cycle in range(restart_cycle+1,num_cycles+1):
+    for cycle in range(1,num_cycles+1):
 
 
         #### Evaluation of trained model on unlabeled set to obtain data for selection
@@ -258,12 +230,11 @@ if __name__ == "__main__":
         if 'Rnd' not in name and cycle < num_cycles:
 
             eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
-
             if os.path.exists(eval_train_dir + 'detections.dat'):
                 with open(eval_train_dir + 'detections.dat','rb') as infile:
                 ###### pdb remove latinq
-                    detected_boxes = pickle.load(infile)
-                    #detected_boxes = pickle.load(infile,encoding='latin1')
+                    #detected_boxes = pickle.load(infile)
+                    detected_boxes = pickle.load(infile,encoding='latin1')
             else:
 
                 # Get unlabeled set
@@ -277,22 +248,12 @@ if __name__ == "__main__":
 
                 # For TCFP, we need to get detections for pretty much every frame,
                 # as not candidates can may be used to support candidates
-                if ('TCFP' in name) or ('TCFN' in name):
+                if ('TCFP' in name):
                     unlabeled_set = [i for i in range(len(dataset))]
 
                 print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
 
-#================================================================================================
-#================================================================================================
-
-
-                #unlabeled_set = unlabeled_set[:100]
-
-                
-#================================================================================================
-#================================================================================================
-
-		save_tf_record(data_info,unlabeled_set)
+                save_tf_record(data_info,unlabeled_set)
 
                 # Set number of eval images to number of unlabeled samples and point to tfrecord
                 eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
@@ -341,8 +302,8 @@ if __name__ == "__main__":
         # Budget for each cycle is the number of videos (0.5% of train set)
         if ('Rnd' in name):
             #indices = select_random_video(dataset,videos,active_set)
-            #indices = sel.select_random(dataset,videos,active_set,budget=num_videos)
-            indices = sel.select_random_video(dataset,videos,active_set)
+            indices = sel.select_full_dataset(dataset)
+            #indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
                 indices = sel.select_entropy_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
@@ -350,12 +311,6 @@ if __name__ == "__main__":
                 indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
             elif ('TCFP' in name):
                 indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
-            elif ('FP_gt' in name):
-	        indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-            elif ('FN_gt' in name):
-	        indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-            elif ('FPN' in name):
-	        indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
             elif ('TCFN' in name):
                 indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
 
@@ -369,12 +324,6 @@ if __name__ == "__main__":
 
         # Set number of steps based on epochs
         train_config.num_steps = epochs*len(active_set)
-
-        # Reducing learning
-	
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
-
 
         def get_next(config):
          return dataset_builder.make_initializable_iterator(

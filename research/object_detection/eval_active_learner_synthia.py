@@ -49,15 +49,11 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
+                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_synthia-active_learning.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-#flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
-flags.DEFINE_string('name', 'RndxVidFrom0',
-#flags.DEFINE_string('name', 'TCFPAllVideos',
-#flags.DEFINE_string('name', 'RndxVidFrom0',
-#flags.DEFINE_string('name','LstxVid',
-#flags.DEFINE_string('name', 'TCFNxVid',
+flags.DEFINE_string('name', 'Syn-RndxVid',
+#flags.DEFINE_string('name', 'Syn-RndFullTrain',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -80,7 +76,7 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
+          'set': 'val_fR10'}
           #'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
@@ -178,12 +174,13 @@ if __name__ == "__main__":
         # Initialize input dict again (necessary?)
         create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
 
+
         graph_rewriter_fn = None
         if 'graph_rewriter_config' in configs:
             graph_rewriter_fn = graph_rewriter_builder.build(
                 configs['graph_rewriter_config'], is_training=False)
 
-        # Need to reset graph for evaluation
+       # Need to reset graph for evaluation
         tf.reset_default_graph()
 
         metrics,_,_ = evaluator.evaluate(
@@ -196,7 +193,7 @@ if __name__ == "__main__":
           graph_hook_fn=graph_rewriter_fn)
 
 
-        # Done with previous cycle
+        ## Done with previous cycle
         if os.path.exists(future_train_dir):
 
             # Make sure we save the very last one, evaluate one last time
@@ -211,7 +208,8 @@ if __name__ == "__main__":
               eval_dir,
               graph_hook_fn=graph_rewriter_fn)
 
-            aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+            #aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+            aps = [metrics[keyAll]]
 
 
             performances['R'+str(run_num)+'c'+str(cycle)]= aps
@@ -225,5 +223,4 @@ if __name__ == "__main__":
             cycle +=1
             train_dir = future_train_dir
             future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
-
 
