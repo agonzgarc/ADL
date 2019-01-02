@@ -310,9 +310,8 @@ if __name__ == "__main__":
 
         # Budget for each cycle is the number of videos (0.5% of train set)
         if ('Rnd' in name):
-            #indices = select_random_video(dataset,videos,active_set)
-            indices = sel.select_full_dataset(dataset)
-            #indices = sel.select_random_video(dataset,videos,active_set)
+            #indices = sel.select_full_dataset(dataset)
+            indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
                 indices = sel.select_entropy_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)

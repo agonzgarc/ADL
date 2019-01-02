@@ -192,6 +192,19 @@ if __name__ == "__main__":
           eval_dir,
           graph_hook_fn=graph_rewriter_fn)
 
+        aps = [metrics[keyAll]]
+
+
+        performances['R'+str(run_num)+'c'+str(cycle)]= aps
+
+        # Write current performance
+        json_str = json.dumps(performances)
+        f = open(output_file,'w')
+        f.write(json_str)
+        f.close()
+
+
+
 
         ## Done with previous cycle
         if os.path.exists(future_train_dir):
