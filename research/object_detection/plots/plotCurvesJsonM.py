@@ -18,12 +18,13 @@ json_files = [
     #'/datatmp/Experiments/Javad/tf/data/ILSVRC/performances/TCFP_total.json',
     '/datatmp/Experiments/Javad/tf/data/ILSVRC/performances/FP_gtR1c20.json',
     '/datatmp/Experiments/Javad/tf/data/ILSVRC/performances/FN_gtR1c20.json',
-    '/datatmp/Experiments/Javad/tf/data/ILSVRC/performances/RndR1c20.json']
+    '/datatmp/Experiments/Javad/tf/data/ILSVRC/performances/RndR1c20.json',
+    '/datatmp/Experiments/Javad/tf/data/ILSVRC/performances/FPN_total.json']
 
 #labels = ['Random','Random_with_freezing','TCFP','False Positive','False Negative']
-labels = ['False Positive','False Negative','Random']
+labels = ['False Positive','False Negative','Random','FPN']
 
-colors = ['b','c','r','g']
+colors = ['b','c','r','g','m']
 linestyles = ['-','-','-','-']
 
 num_curves = len(json_files)
@@ -75,6 +76,17 @@ for i in range(num_curves):
        rnd_avg[cycle-1] = ap_cycle.mean()
        rnd_std[cycle-1] = ap_cycle.std()
       points=range(1,9)
+      plt.errorbar(points,rnd_avg,rnd_std,color=colors[i],label=labels[i],linestyle=linestyles[i],marker='o',capsize=2)
+
+    elif i==4:
+      rnd_avg = np.zeros(17)
+      rnd_std = np.zeros(17)
+      for cycle in range(1,18):	
+       print(i)
+       ap_cycle = np.array([data['R'+str(r)+'c'+str(cycle)][0] for r in range(1,4)])
+       rnd_avg[cycle-1] = ap_cycle.mean()
+       rnd_std[cycle-1] = ap_cycle.std()
+      points=range(1,18)
       plt.errorbar(points,rnd_avg,rnd_std,color=colors[i],label=labels[i],linestyle=linestyles[i],marker='o',capsize=2)
 
 plt.legend()
