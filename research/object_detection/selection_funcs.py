@@ -18,8 +18,8 @@ from object_detection.utils import np_box_ops
 from object_detection.utils import np_box_list
 from object_detection.utils import np_box_list_ops
 from object_detection.utils import visualization_utils as vis_utils
-from guppy import hpy
-from memory_profiler import memory_usage
+#from guppy import hpy
+#from memory_profiler import memory_usage
 
 # Tracking module
 import siamfc.siamese as siam
@@ -191,6 +191,80 @@ def compute_entropy(predictions):
 
     return entropies
 
+#def compute_entropy_with_sel_pred(predictions, threshold):
+    #""" Given a list of predictions (class scores with background), it computes
+    #the entropy of each prediction in the list
+    #Args:
+        #predictions: list of predictions. Each element corresponds to an image,
+            #containing a numpy nd array of shape (num windows, num_classes+1)
+        #threshold: minimum value for accepatble prediction
+    #Returns:
+        #entropies: list of the same dimension, each item is the summary entropy
+            #for the corresponding image
+    #"""
+    ## Add more summary measures, now we only have max
+
+    #def softmax_pred(x):
+        #e = np.exp(x)
+        #return e/np.sum(e,axis=1,keepdims=True)
+
+    #def entropy(x):
+        #return np.sum(-x*np.log(x),axis=1)
+
+    #all_sm = [softmax_pred(i) for i in predictions]
+    #all_sm_no_background = [i[:,1:] for i in all_sm]
+
+    ## Compute maximum score of each prediction
+    #max_scores = np.amax(all_sm_no_background,axis=2)
+    #max_scores = np.amax(all_sm,axis=2)
+    #pdb.set_trace()
+    #proc_dets = []
+    #for i in range(len(all_sm)):
+        #good_dets = all_sm[i]
+        ## No window is removed by NMS
+        ##if len(predictions[i]) == len(sel_predictions)
+        ##for k in range(len(all_sm[i])):
+            ##if (max_scores[i][k] in sel_predictions[i]) and max_scores[i][k] > threshold
+
+    #dets_sm = [all_sm[i][max_scores[i]>threshold] for i in range(len(max_scores))]
+    #entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
+
+    #return entropies
+
+def compute_entropy_with_threshold(predictions, threshold):
+    """ Given a list of predictions (class scores with background), it computes
+    the entropy of each prediction in the list
+    Args:
+        predictions: list of predictions. Each element corresponds to an image,
+            containing a numpy nd array of shape (num windows, num_classes+1)
+        threshold: minimum value for accepatble prediction
+    Returns:
+        entropies: list of the same dimension, each item is the summary entropy
+            for the corresponding image
+    """
+    # Add more summary measures, now we only have max
+
+    def softmax_pred(x):
+        e = np.exp(x)
+        return e/np.sum(e,axis=1,keepdims=True)
+
+    def entropy(x):
+        if len(x)>0:
+            return np.sum(-x*np.log(x),axis=1)
+        else:
+            return -1
+
+    all_sm = [softmax_pred(i)[1:] for i in predictions]
+    all_sm_no_background = [i[:,1:] for i in all_sm]
+
+    # Compute maximum score of each prediction
+    max_scores = np.amax(all_sm_no_background,axis=2)
+    dets_sm = [all_sm[i][max_scores[i]>threshold] for i in range(len(max_scores))]
+    entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
+
+    return entropies
+
+
 
 
 def select_entropy(dataset,videos,active_set,detections,budget=788):
@@ -253,41 +327,41 @@ def select_entropy(dataset,videos,active_set,detections,budget=788):
 
 
 
-def select_entropy_video(dataset,videos,active_set,detections):
+#def select_entropy_video(dataset,videos,active_set,detections):
 
-        indices = []
+        #indices = []
 
-        # We have detections only for the labeled dataset, be careful with indexing
-        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+        ## We have detections only for the labeled dataset, be careful with indexing
+        ##unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
 
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
-        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+        #aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+        #unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
-        predictions = detections['scores_with_background']
+        #predictions = detections['scores_with_background']
 
-        num_classes = 3+1
+        #num_classes = 3+1
 
-        for v in videos:
+        #for v in videos:
 
-            # Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v]
+            ## Select frames in current video
+            #frames = [f['idx'] for f in dataset if f['video'] == v]
 
-            # Get only those that are not labeled
-            frames = [f for f in frames if f in unlabeled_set]
+            ## Get only those that are not labeled
+            #frames = [f for f in frames if f in unlabeled_set]
 
-            # If all frames of video are in active set, ignore video
-            if len(frames) > 0:
-                # Extract corresponding predictions
-                det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+            ## If all frames of video are in active set, ignore video
+            #if len(frames) > 0:
+                ## Extract corresponding predictions
+                #det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
 
-                # Compute and summarize entropy
-                ent = np.array(compute_entropy(det_frames))
+                ## Compute and summarize entropy
+                #ent = np.array(compute_entropy(det_frames))
 
-                #idxR = random.randint(0,len(frames)-1)
-                idxR = ent.argmax(0)
-                indices.append(frames[idxR])
-            #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
-        return indices
+                ##idxR = random.randint(0,len(frames)-1)
+                #idxR = ent.argmax(0)
+                #indices.append(frames[idxR])
+            ##print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
+        #return indices
 
 
 
@@ -336,7 +410,8 @@ def select_entropy_detections_video(dataset,videos,active_set,detections):
         aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
-        predictions = detections['scores']
+        predictions = detections['scores_with_background']
+        sel_predictions = detections['scores']
 
         thresh_detection = 0.5
 
@@ -351,24 +426,16 @@ def select_entropy_detections_video(dataset,videos,active_set,detections):
             # If all frames of video are in active set, ignore video
             if len(frames) > 0:
                 # Extract corresponding predictions
-                det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+                pred_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+                sel_pred_frames = [sel_predictions[unlabeled_set.index(f)] for f in frames]
 
-                # Compute average frame confidence
-                avg_conf = []
-                for df in det_frames:
-                    sel_dets = df[df > thresh_detection]
-                    if len(sel_dets) > 0:
-                        acf = sel_dets.mean()
-                    else:
-                        acf = np.inf
-                    avg_conf.append(acf)
+                # Compute and summarize entropy
+                ent = np.array(compute_entropy_with_threshold(pred_frames,thresh_detection))
 
-                avg_conf = np.asarray(avg_conf)
-                # Select frames that achieve minimum
-                idx_min = np.where(avg_conf == np.min(avg_conf))
-                idx_sel = np.random.choice(idx_min[0])
+                #idxR = random.randint(0,len(frames)-1)
+                idxR = ent.argmax(0)
+                indices.append(frames[idxR])
 
-                indices.append(frames[idx_sel])
             #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
         return indices
 
@@ -592,8 +659,10 @@ def select_TCFP_per_video(dataset,videos,data_dir,active_set,detections):
                             # Take only those of the current class
                             detections_neighbors.append(detected_boxes[fu[0]-t][detected_labels[fu[0]-t] == labels_frame[idx_det]])
 
+                    # Save frames and detections in lists
                     frame_list_video.append(frame_list)
                     detections_neighbors_video.append(detections_neighbors)
+
                     #bboxes, speed = tracker(hp, run, design, frame_list, pos_x, pos_y, target_w, target_h, final_score_sz, filename, image, templates_z, scores, 1)
 
 
@@ -687,282 +756,282 @@ def select_TCFP_per_video(dataset,videos,data_dir,active_set,detections):
 
     return indices
 
-#@profile
-def selectFpPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
+##@profile
+#def selectFpPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
 	
-        data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
-	score_thresh=0.5
-	iou_thresh=0.5 	    
-        indices = []
+        #data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
+    #score_thresh=0.5
+    #iou_thresh=0.5 	    
+        #indices = []
 
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
-        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+        #aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+        #unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
-        # We have detections only for the labeled dataset, be careful with indexing
-        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+        ## We have detections only for the labeled dataset, be careful with indexing
+        ##unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
 
-	BOXES = detections['boxes'] 
-	SCORES= detections['scores']
-	gt_boxes = groundtruth_boxes['boxes']
+    #BOXES = detections['boxes'] 
+    #SCORES= detections['scores']
+    #gt_boxes = groundtruth_boxes['boxes']
 
-        stat_data={}
-        stat_data['videos_wo_FP']=[]
-        stat_data['FP_info']=[]
+        #stat_data={}
+        #stat_data['videos_wo_FP']=[]
+        #stat_data['FP_info']=[]
 
-        for v in videos:            
+        #for v in videos:            
         
-            # Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
+            ## Select frames in current video
+            #frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
             
-	    # Get only those that are not labeled
-            #frames = [f for f in frames if ]	    
+        ## Get only those that are not labeled
+            ##frames = [f for f in frames if ]	    
 
-	    #pdb.set_trace()
+        ##pdb.set_trace()
 
-            # If all frames of video are in active set, ignore video
-            if len(frames) > 0:
-	       j=0 	       
-	       FP = np.zeros((len(frames)))
-               for f in frames:
-                    anno_ind=unlabeled_set.index(f)
-  		    ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-		    boxes=np.array(BOXES[anno_ind])[ind,:]
-		    if boxes.any(): # if the frame has detections with high score
-		       if gt_boxes[anno_ind].any():
-                  	  # Compute IOU between gt and detected bbox 
-		  	  iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-		  	  iou=iou_mat.max(axis=0)
-		  	  # identify detections with IOU lower than threshold 			
-		  	  low_iou=iou<iou_thresh 
-		  	  # Check if there are multiple detections for single groundtruth box
-	          	  max_thresh=np.zeros(len(iou))
-		  	  temp=iou_mat.argmax(axis=1) 
-		  	  max_thresh[temp]=1;
-                          #pdb.set_trace()
-	          	  false_pos=low_iou | np.logical_not(max_thresh)
-		  	  FP[j]=sum(false_pos)
-		       else:
-		          FP[j]=len(boxes) 		  
-                    j+=1
-               if sum(FP)==0:   # case there is no False Positive in this video
-                  idx_sel=random.randint(0,len(FP)-1)
-                  #stat_data['videos_wo_FP'].append({'video':v})    
-	       else:
-                  idx_max = np.where(FP == max(FP))
-                  idx_sel = np.random.choice(idx_max[0])
-                            		
+            ## If all frames of video are in active set, ignore video
+            #if len(frames) > 0:
+           #j=0 	       
+           #FP = np.zeros((len(frames)))
+               #for f in frames:
+                    #anno_ind=unlabeled_set.index(f)
+              #ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+            #boxes=np.array(BOXES[anno_ind])[ind,:]
+            #if boxes.any(): # if the frame has detections with high score
+               #if gt_boxes[anno_ind].any():
+                        ## Compute IOU between gt and detected bbox 
+                #iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+                #iou=iou_mat.max(axis=0)
+                ## identify detections with IOU lower than threshold 			
+                #low_iou=iou<iou_thresh 
+                ## Check if there are multiple detections for single groundtruth box
+                    #max_thresh=np.zeros(len(iou))
+                #temp=iou_mat.argmax(axis=1) 
+                #max_thresh[temp]=1;
+                          ##pdb.set_trace()
+                    #false_pos=low_iou | np.logical_not(max_thresh)
+                #FP[j]=sum(false_pos)
+               #else:
+                  #FP[j]=len(boxes) 		  
+                    #j+=1
+               #if sum(FP)==0:   # case there is no False Positive in this video
+                  #idx_sel=random.randint(0,len(FP)-1)
+                  ##stat_data['videos_wo_FP'].append({'video':v})    
+           #else:
+                  #idx_max = np.where(FP == max(FP))
+                  #idx_sel = np.random.choice(idx_max[0])
+                                    
 
-	       indices.append(frames[idx_sel])
-               print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
-	       #print(dataset[frames[idx_sel]]['filename'])
-               #stat_data['FP_info'].append({'video':v,'frame':frames[idx_sel],'FP_loc':idx_sel,'video_length':len(frames)})
-	    
-	    """
-            #========================visualization to check FPs================================
-            for f in frames:
-             for d in dataset:
-              if d['idx']==f and d['video']==v:
-               IndInDs=dataset.index(d)
-               anno_ind=unlabeled_set.index(f)                                          
-               video_dir = os.path.join(data_dir,'Data','VID','train',v)
-               curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
-               im_w,im_h = curr_im.size
-               vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
-               ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-	       boxes=np.array(BOXES[anno_ind])[ind,:]
-               vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
-               curr_im.save(data_dir+'/FP_samples'+'/FP_'+str(int(FP[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
-	    
-            #==================================================================================
-	    pdb.set_trace()
-	    """
-        #output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FP_stat_data_cycle'+str(cycle)+'.json'
-        #with open(output_file, 'w') as fp:
-        #     json.dump(stat_data, fp)
+           #indices.append(frames[idx_sel])
+               #print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
+           ##print(dataset[frames[idx_sel]]['filename'])
+               ##stat_data['FP_info'].append({'video':v,'frame':frames[idx_sel],'FP_loc':idx_sel,'video_length':len(frames)})
+		
+        #"""
+            ##========================visualization to check FPs================================
+            #for f in frames:
+             #for d in dataset:
+              #if d['idx']==f and d['video']==v:
+               #IndInDs=dataset.index(d)
+               #anno_ind=unlabeled_set.index(f)                                          
+               #video_dir = os.path.join(data_dir,'Data','VID','train',v)
+               #curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
+               #im_w,im_h = curr_im.size
+               #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
+               #ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+           #boxes=np.array(BOXES[anno_ind])[ind,:]
+               #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
+               #curr_im.save(data_dir+'/FP_samples'+'/FP_'+str(int(FP[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
+		
+            ##==================================================================================
+        #pdb.set_trace()
+        #"""
+        ##output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FP_stat_data_cycle'+str(cycle)+'.json'
+        ##with open(output_file, 'w') as fp:
+        ##     json.dump(stat_data, fp)
 
-        return indices
+        #return indices
 
-def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
+#def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
 
-        data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
-	score_thresh=0.5
-	iou_thresh=0.5 	    
-        indices = []
+        #data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
+	#score_thresh=0.5
+	#iou_thresh=0.5 	    
+        #indices = []
 
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
-        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+        #aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+        #unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
-        # We have detections only for the labeled dataset, be careful with indexing
-        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+        ## We have detections only for the labeled dataset, be careful with indexing
+        ##unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
 
-	BOXES = detections['boxes'] 
-	SCORES= detections['scores']
-	gt_boxes = groundtruth_boxes['boxes']
+	#BOXES = detections['boxes'] 
+	#SCORES= detections['scores']
+	#gt_boxes = groundtruth_boxes['boxes']
 
-        stat_data={}
-        stat_data['videos_wo_FN']=[]
-        stat_data['FN_info']=[]
+        #stat_data={}
+        #stat_data['videos_wo_FN']=[]
+        #stat_data['FN_info']=[]
 
-        for v in videos:
+        #for v in videos:
 
-            # Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
+            ## Select frames in current video
+            #frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
             
-	    # Get only those that are not labeled
-            #frames = [f for f in frames if f in unlabeled_set]	    
+		## Get only those that are not labeled
+            ##frames = [f for f in frames if f in unlabeled_set]	    
 
-            # If all frames of video are in active set, ignore video
-            if len(frames) > 0:            
-	       #print('frame = ',frames)
-	       j=0 	       
-	       FN = np.zeros((len(frames)))
-	       for f in frames:
-                  anno_ind=unlabeled_set.index(f)	           
-		  if gt_boxes[anno_ind].any():	           		    
-		      # Extracting boxes with score greater than threshold
-      		      ind=SCORES[anno_ind] > score_thresh
-		      boxes=np.array(BOXES[anno_ind])[ind,:]		 
-		      if boxes.any():
-                  	 # Compute IOU between gt and detected bbox 
-		  	 iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-		  	 iou=iou_mat.max(axis=1)
-		  	 # identify gt_boxes having low IOU with detected_boxes 			
-		  	 low_iou=iou<iou_thresh 
-		  	 FN[j]=sum(low_iou)
-		      else:
-		         FN[j]=len(gt_boxes[anno_ind])			
-		  j+=1
+            ## If all frames of video are in active set, ignore video
+            #if len(frames) > 0:            
+		   ##print('frame = ',frames)
+		   #j=0 	       
+		   #FN = np.zeros((len(frames)))
+		   #for f in frames:
+                  #anno_ind=unlabeled_set.index(f)	           
+		  #if gt_boxes[anno_ind].any():	           		    
+			  ## Extracting boxes with score greater than threshold
+                    #ind=SCORES[anno_ind] > score_thresh
+			  #boxes=np.array(BOXES[anno_ind])[ind,:]		 
+			  #if boxes.any():
+                       ## Compute IOU between gt and detected bbox 
+			   #iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+			   #iou=iou_mat.max(axis=1)
+			   ## identify gt_boxes having low IOU with detected_boxes 			
+			   #low_iou=iou<iou_thresh 
+			   #FN[j]=sum(low_iou)
+			  #else:
+				 #FN[j]=len(gt_boxes[anno_ind])			
+		  #j+=1
 
-               if sum(FN)==0:   # case there is no False Negative in this video
-                  idx_sel=random.randint(0,len(FN)-1)
-                  #stat_data['videos_wo_FN'].append({'video':v})    
-	       else:		  
-                  idx_max = np.where(FN == max(FN))
-                  idx_sel = np.random.choice(idx_max[0])
+               #if sum(FN)==0:   # case there is no False Negative in this video
+                  #idx_sel=random.randint(0,len(FN)-1)
+                  ##stat_data['videos_wo_FN'].append({'video':v})    
+		   #else:		  
+                  #idx_max = np.where(FN == max(FN))
+                  #idx_sel = np.random.choice(idx_max[0])
 
-	       indices.append(frames[idx_sel])
-               print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
-	       #print(dataset[frames[idx_sel]]['filename'])
-               #stat_data['FN_info'].append({'video':v,'frame':frames[idx_sel],'FN_loc':idx_sel,'video_length':len(frames)})
+		   #indices.append(frames[idx_sel])
+               #print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
+		   ##print(dataset[frames[idx_sel]]['filename'])
+               ##stat_data['FN_info'].append({'video':v,'frame':frames[idx_sel],'FN_loc':idx_sel,'video_length':len(frames)})
 
-            #========================visualization to check FNs================================
-	    """
-            for f in frames:
-             for d in dataset:
-              if d['idx']==f and d['video']==v:
-               IndInDs=dataset.index(d)
-               anno_ind=unlabeled_set.index(f)                                          
-               video_dir = os.path.join(data_dir,'Data','VID','train',v)
-               curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
-               im_w,im_h = curr_im.size
-               vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
-               ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-	       boxes=np.array(BOXES[anno_ind])[ind,:]
-               vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
-               draw = ImageDraw.Draw(curr_im)
-               curr_im.show()
-               curr_im.save(data_dir+'/FN_samples'+'/FN_'+str(int(FN[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
-	    """
-            #==================================================================================
+            ##========================visualization to check FNs================================
+		#"""
+            #for f in frames:
+             #for d in dataset:
+              #if d['idx']==f and d['video']==v:
+               #IndInDs=dataset.index(d)
+               #anno_ind=unlabeled_set.index(f)                                          
+               #video_dir = os.path.join(data_dir,'Data','VID','train',v)
+               #curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
+               #im_w,im_h = curr_im.size
+               #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
+               #ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+		   #boxes=np.array(BOXES[anno_ind])[ind,:]
+               #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
+               #draw = ImageDraw.Draw(curr_im)
+               #curr_im.show()
+               #curr_im.save(data_dir+'/FN_samples'+'/FN_'+str(int(FN[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
+		#"""
+            ##==================================================================================
 
-        #output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FN_stat_data_cycle'+str(cycle)+'.json'
-        #with open(output_file, 'w') as fn:
-        #     json.dump(stat_data, fn)
+        ##output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FN_stat_data_cycle'+str(cycle)+'.json'
+        ##with open(output_file, 'w') as fn:
+        ##     json.dump(stat_data, fn)
        
-        return indices
+        #return indices
 
 
-def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
+#def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
 	
-        data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
-	score_thresh=0.5
-	iou_thresh=0.5 	    
-        indices = []
+        #data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
+	#score_thresh=0.5
+	#iou_thresh=0.5 	    
+        #indices = []
 
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
-        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+        #aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+        #unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
-        # We have detections only for the labeled dataset, be careful with indexing
-        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+        ## We have detections only for the labeled dataset, be careful with indexing
+        ##unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
 
-	BOXES = detections['boxes'] 
-	SCORES= detections['scores']
-	gt_boxes = groundtruth_boxes['boxes']
+	#BOXES = detections['boxes'] 
+	#SCORES= detections['scores']
+	#gt_boxes = groundtruth_boxes['boxes']
 
-        stat_data={}
-        stat_data['videos_wo_FPN']=[]
-        stat_data['FPN_info']=[]
+        #stat_data={}
+        #stat_data['videos_wo_FPN']=[]
+        #stat_data['FPN_info']=[]
 
-        for v in videos:            
+        #for v in videos:            
         
-            # Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
+            ## Select frames in current video
+            #frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
 
-            # If all frames of video are in active set, ignore video
+            ## If all frames of video are in active set, ignore video
 
-            if len(frames) > 0:
-	       j=0 	       
-	       FP = np.zeros((len(frames)))
-	       FN = np.zeros((len(frames)))
-               for f in frames:
-                    anno_ind=unlabeled_set.index(f)
-  		    ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-		    boxes=np.array(BOXES[anno_ind])[ind,:]
-	            # FP selection part            
-		    if boxes.any(): # if the frame has detections with high score
-		       if gt_boxes[anno_ind].any():
-                  	  # Compute IOU between gt and detected bbox 
-		  	  iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-		  	  iou=iou_mat.max(axis=0)
-		  	  # identify detections with IOU lower than threshold 			
-		  	  low_iou=iou<iou_thresh 
-		  	  # Check if there are multiple detections for single groundtruth box
-	          	  max_thresh=np.zeros(len(iou))
-		  	  temp=iou_mat.argmax(axis=1) 
-		  	  max_thresh[temp]=1;
-                          #pdb.set_trace()
-	          	  false_pos=low_iou | np.logical_not(max_thresh)
-		  	  FP[j]=sum(false_pos)
-		       else:
-		          FP[j]=len(boxes) 		                
-	            # FN selection part                      
-		    if gt_boxes[anno_ind].any():	           		    
-		       if boxes.any():
-                  	  # Compute IOU between gt and detected bbox 
-		  	  iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-		  	  iou=iou_mat.max(axis=1)
-		  	  # identify gt_boxes having low IOU with detected_boxes 			
-		  	  low_iou=iou<iou_thresh 
-		  	  FN[j]=sum(low_iou)
-		       else:
-		          FN[j]=len(gt_boxes[anno_ind])			
-                    j+=1               
-	       FPN=FP+FN
-               if sum(FPN)==0:   # case there is no False Positive or False Negative in this video
-                  idx_sel=random.randint(0,len(FPN)-1)
-                  stat_data['videos_wo_FPN'].append({'video':v})    
-	       else:
-                  idx_max_FPN = np.where(FPN == max(FPN))
-		  FN_max=np.where(FN[idx_max_FPN]==max(FN[idx_max_FPN])) # From the frames with max FPN choose frame with max FN
-                  idx_rnd = np.random.choice(FN_max[0])
-		  idx_sel=idx_max_FPN[0][idx_rnd]
+            #if len(frames) > 0:
+		   #j=0 	       
+		   #FP = np.zeros((len(frames)))
+		   #FN = np.zeros((len(frames)))
+               #for f in frames:
+                    #anno_ind=unlabeled_set.index(f)
+              #ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+			#boxes=np.array(BOXES[anno_ind])[ind,:]
+				## FP selection part            
+			#if boxes.any(): # if the frame has detections with high score
+			   #if gt_boxes[anno_ind].any():
+                        ## Compute IOU between gt and detected bbox 
+				#iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+				#iou=iou_mat.max(axis=0)
+				## identify detections with IOU lower than threshold 			
+				#low_iou=iou<iou_thresh 
+				## Check if there are multiple detections for single groundtruth box
+					#max_thresh=np.zeros(len(iou))
+				#temp=iou_mat.argmax(axis=1) 
+				#max_thresh[temp]=1;
+                          ##pdb.set_trace()
+					#false_pos=low_iou | np.logical_not(max_thresh)
+				#FP[j]=sum(false_pos)
+			   #else:
+				  #FP[j]=len(boxes) 		                
+				## FN selection part                      
+			#if gt_boxes[anno_ind].any():	           		    
+			   #if boxes.any():
+                        ## Compute IOU between gt and detected bbox 
+				#iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+				#iou=iou_mat.max(axis=1)
+				## identify gt_boxes having low IOU with detected_boxes 			
+				#low_iou=iou<iou_thresh 
+				#FN[j]=sum(low_iou)
+			   #else:
+				  #FN[j]=len(gt_boxes[anno_ind])			
+                    #j+=1               
+		   #FPN=FP+FN
+               #if sum(FPN)==0:   # case there is no False Positive or False Negative in this video
+                  #idx_sel=random.randint(0,len(FPN)-1)
+                  #stat_data['videos_wo_FPN'].append({'video':v})    
+		   #else:
+                  #idx_max_FPN = np.where(FPN == max(FPN))
+		  #FN_max=np.where(FN[idx_max_FPN]==max(FN[idx_max_FPN])) # From the frames with max FPN choose frame with max FN
+                  #idx_rnd = np.random.choice(FN_max[0])
+		  #idx_sel=idx_max_FPN[0][idx_rnd]
                   
-		  #print('FPN= ',FPN)
-                  #print('FP= ',FP[idx_sel])
-                  #print('FN= ',FN[idx_sel])
-                  #print('idx_sel= ',idx_sel)
-                  #pdb.set_trace()
+		  ##print('FPN= ',FPN)
+                  ##print('FP= ',FP[idx_sel])
+                  ##print('FN= ',FN[idx_sel])
+                  ##print('idx_sel= ',idx_sel)
+                  ##pdb.set_trace()
 
-	       indices.append(frames[idx_sel])
-               print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
-	       #print(dataset[frames[idx_sel]]['filename'])
-               stat_data['FPN_info'].append({'video':v,'frame':frames[idx_sel],'FPN_loc':idx_sel,'FN_value':FN[idx_sel],'FP_value':FP[idx_sel],'video_length':len(frames)})
+		   #indices.append(frames[idx_sel])
+               #print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
+		   ##print(dataset[frames[idx_sel]]['filename'])
+               #stat_data['FPN_info'].append({'video':v,'frame':frames[idx_sel],'FPN_loc':idx_sel,'FN_value':FN[idx_sel],'FP_value':FP[idx_sel],'video_length':len(frames)})
 
-        output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FPN_stat_data_cycle'+str(cycle)+'.json'
-        with open(output_file, 'w') as fpn:
-             json.dump(stat_data, fpn)
+        #output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FPN_stat_data_cycle'+str(cycle)+'.json'
+        #with open(output_file, 'w') as fpn:
+             #json.dump(stat_data, fpn)
 
-        return indices
+        #return indices
 
 
 

@@ -35,8 +35,8 @@ from pycocotools import mask
 
 from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
-from guppy import hpy
-from memory_profiler import memory_usage
+#from guppy import hpy
+#from memory_profiler import memory_usage
 
 tf.logging.set_verbosity(tf.logging.INFO)
 tf.logging.set_verbosity(tf.logging.INFO)
@@ -66,8 +66,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-#flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
-flags.DEFINE_string('name', 'TCFNxVid',
+flags.DEFINE_string('name', 'EntOnDetsxVid',
 #flags.DEFINE_string('name','LstxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
@@ -76,7 +75,7 @@ flags.DEFINE_string('epochs','10',
                     'Number of epochs')
 flags.DEFINE_string('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
-flags.DEFINE_string('run','10',
+flags.DEFINE_string('run','1',
                     'Number of current run')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
@@ -93,7 +92,8 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
+          'set': 'train_ALL_clean_short'}
+          #'set': 'train_150K_clean'}
           #'set': 'train_150K_clean_short'}
           #'set':'train_shrinked'}
           #'set': 'train_ALL_clean_short'}
@@ -292,7 +292,7 @@ if __name__ == "__main__":
 #================================================================================================
 #================================================================================================
 
-		save_tf_record(data_info,unlabeled_set)
+                save_tf_record(data_info,unlabeled_set)
 
                 # Set number of eval images to number of unlabeled samples and point to tfrecord
                 eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
@@ -345,17 +345,17 @@ if __name__ == "__main__":
             indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
-                indices = sel.select_entropy_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+                indices = sel.select_entropy_detections_video(dataset,videos,active_set,detected_boxes)
             elif ('Lst' in name):
                 indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
             elif ('TCFP' in name):
                 indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
             elif ('FP_gt' in name):
-	        indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+	            indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
             elif ('FN_gt' in name):
-	        indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+	            indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
             elif ('FPN' in name):
-	        indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+	            indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
             elif ('TCFN' in name):
                 indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
 
@@ -371,9 +371,8 @@ if __name__ == "__main__":
         train_config.num_steps = epochs*len(active_set)
 
         # Reducing learning
-	
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
+        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
+        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
 
 
         def get_next(config):
