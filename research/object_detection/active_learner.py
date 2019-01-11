@@ -230,19 +230,19 @@ if __name__ == "__main__":
     eval_config.max_evals = 1
 
     # Config now indicates directory where we save all first cycle models
-    pretrained_checkpoint = train_config.fine_tune_checkpoint
+    #pretrained_checkpoint = train_config.fine_tune_checkpoint
 
 
     # Load active set from cycle 0 and point to right model
     if restart_cycle==0:
         train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
-        train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
+        #train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
     else:
         train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(restart_cycle) + '/'
         # Get actual checkpoint model
-        with open(train_dir+'checkpoint','r') as cfile:
-            line = cfile.readlines()
-            train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
+        #with open(train_dir+'checkpoint','r') as cfile:
+            #line = cfile.readlines()
+            #train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
 
 
     active_set = []
@@ -288,7 +288,6 @@ if __name__ == "__main__":
 
                 #unlabeled_set = unlabeled_set[:100]
 
-                
 #================================================================================================
 #================================================================================================
 
@@ -366,6 +365,7 @@ if __name__ == "__main__":
         save_tf_record(data_info,active_set)
 
         input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+
 
         # Set number of steps based on epochs
         train_config.num_steps = epochs*len(active_set)
