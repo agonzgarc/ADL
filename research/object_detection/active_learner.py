@@ -1,12 +1,8 @@
-
-
 """Extension of the training executal for detection models (train.py)
 
 MORE DETAILS
 
 """
-
-
 import pdb
 import random
 import numpy as np
@@ -35,12 +31,9 @@ from pycocotools import mask
 
 from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
-#from guppy import hpy
-#from memory_profiler import memory_usage
 
 tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.set_verbosity(tf.logging.INFO)
-#tf.logging.set_verbosity(tf.logging.WARN)
+tf.logging.set_verbosity(tf.logging.WARN)
 
 flags = tf.app.flags
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -62,12 +55,10 @@ flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/perf
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    #'/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning_short.config',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
 flags.DEFINE_string('name', 'EntOnDetsxVid',
-#flags.DEFINE_string('name','LstxVid',
                     'Name of method to run')
 flags.DEFINE_string('cycles','20',
                     'Number of cycles')
@@ -92,19 +83,7 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_ALL_clean_short'}
-          #'set': 'train_150K_clean'}
-          #'set': 'train_150K_clean_short'}
-          #'set':'train_shrinked'}
-          #'set': 'train_ALL_clean_short'}
-
-
-# Harcoded keys to retrieve metrics
-keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
-keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02958343'
-keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02834778'
-keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
-
+          'set': 'train_150K_clean'}
 
 def get_dataset(data_info):
     """ Gathers information about the dataset given and stores it in a
@@ -134,11 +113,6 @@ def get_dataset(data_info):
     videos = set([d['video'] for d in dataset])
     return dataset,videos
 
-
-#def nms_detections(boxes,scores,labels,thresh_nms = 0.8):
-    #boxlist = np_box_list.BoxList(boxes)
-    #boxlist.add_field('scores',scores)
-
 def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
     detected_boxes = detections['boxes']
     detected_scores = detections['scores']
@@ -156,12 +130,6 @@ def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
             det_im = detected_boxes[unlabeled_set.index(f['idx'])]
             vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(det_im[:2,],im_w,im_h),color='green')
             curr_im.show()
-
-class NumpyEncoder(json.JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, np.ndarray):
-            return obj.tolist()
-        return json.JSONEncoder.default(self, obj)
 
 #def main(_):
 if __name__ == "__main__":
@@ -204,7 +172,6 @@ if __name__ == "__main__":
     name = FLAGS.name
     num_cycles = int(FLAGS.cycles)
     run_num = int(FLAGS.run)
-    num_steps = str(train_config.num_steps)
     epochs = int(FLAGS.epochs)
     restart_cycle = int(FLAGS.restart_from_cycle)
 
@@ -229,10 +196,6 @@ if __name__ == "__main__":
     # Run evaluation once only
     eval_config.max_evals = 1
 
-    # Config now indicates directory where we save all first cycle models
-    #pretrained_checkpoint = train_config.fine_tune_checkpoint
-
-
     # Load active set from cycle 0 and point to right model
     if restart_cycle==0:
         train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
@@ -244,14 +207,12 @@ if __name__ == "__main__":
             #line = cfile.readlines()
             #train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
 
-
     active_set = []
     with open(train_dir + 'active_set.txt', 'r') as f:
         for line in f:
             active_set.append(int(line))
 
     for cycle in range(restart_cycle+1,num_cycles+1):
-
 
         #### Evaluation of trained model on unlabeled set to obtain data for selection
 
@@ -261,9 +222,8 @@ if __name__ == "__main__":
 
             if os.path.exists(eval_train_dir + 'detections.dat'):
                 with open(eval_train_dir + 'detections.dat','rb') as infile:
-                ###### pdb remove latinq
-                    detected_boxes = pickle.load(infile)
-                    #detected_boxes = pickle.load(infile,encoding='latin1')
+                    #detected_boxes = pickle.load(infile)
+                    detected_boxes = pickle.load(infile,encoding='latin1')
             else:
 
                 # Get unlabeled set
@@ -277,19 +237,12 @@ if __name__ == "__main__":
 
                 # For TCFP, we need to get detections for pretty much every frame,
                 # as not candidates can may be used to support candidates
+
+                ##### CHANGE THIS, ONLY FOR THOSE FRAMES THAT MIGHT HAVE AN INFLUENCE IN DECISIONS
                 if ('TCFP' in name) or ('TCFN' in name):
                     unlabeled_set = [i for i in range(len(dataset))]
 
                 print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-
-#================================================================================================
-#================================================================================================
-
-
-                #unlabeled_set = unlabeled_set[:100]
-
-#================================================================================================
-#================================================================================================
 
                 save_tf_record(data_info,unlabeled_set)
 
@@ -337,10 +290,13 @@ if __name__ == "__main__":
         #### Training of current cycle
         train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
+        #Save active_set in train dir in case we want to restart training
+        with open(train_dir + 'active_set.txt', 'w') as f:
+            for item in active_set:
+                f.write('{}\n'.format(item))
+
         # Budget for each cycle is the number of videos (0.5% of train set)
         if ('Rnd' in name):
-            #indices = select_random_video(dataset,videos,active_set)
-            #indices = sel.select_random(dataset,videos,active_set,budget=num_videos)
             indices = sel.select_random_video(dataset,videos,active_set)
         else:
             if ('Ent' in name):
@@ -357,7 +313,6 @@ if __name__ == "__main__":
 	            indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
             elif ('TCFN' in name):
                 indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
-
 
         active_set.extend(indices)
 
@@ -439,22 +394,8 @@ if __name__ == "__main__":
           train_dir,
           graph_hook_fn=graph_rewriter_fn)
 
-        #Save active_set in train dir in case we want to restart training
-        with open(train_dir + 'active_set.txt', 'w') as f:
-            for item in active_set:
-                f.write('{}\n'.format(item))
-
         # Remove tfrecord used for training
         if os.path.exists(data_info['output_path']):
             os.remove(data_info['output_path'])
 
 
-            # Update initial model, add latest cycle
-            #train_config.fine_tune_checkpoint = train_dir + 'model.ckpt-' + num_steps
-
-
-
-
-#metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate( create_eval_train_input_dict_fn, eval_model_fn, eval_config, categories, train_dir, eval_train_dir, graph_hook_fn=graph_rewriter_fn)
-
-#trainer.train(create_input_dict_fn, model_fn, train_config, master, task, FLAGS.num_clones, worker_replicas,FLAGS.clone_on_cpu,ps_tasks, worker_job_name,is_chief,train_dir, graph_hook_fn=graph_rewriter_fn)
