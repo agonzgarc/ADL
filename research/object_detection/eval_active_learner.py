@@ -26,8 +26,7 @@ from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
 
 tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.set_verbosity(tf.logging.INFO)
-#tf.logging.set_verbosity(tf.logging.WARN)
+tf.logging.set_verbosity(tf.logging.WARN)
 
 flags = tf.app.flags
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -52,18 +51,15 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-#flags.DEFINE_string('name', 'Rnd-FullDVideoExt',
 flags.DEFINE_string('name', 'RndxVidFrom0',
-#flags.DEFINE_string('name', 'TCFPAllVideos',
-#flags.DEFINE_string('name', 'RndxVidFrom0',
-#flags.DEFINE_string('name','LstxVid',
-#flags.DEFINE_string('name', 'TCFNxVid',
                     'Name of method to run')
-flags.DEFINE_string('cycles','20',
+flags.DEFINE_integer('cycles','20',
                     'Number of cycles')
-flags.DEFINE_string('restart_from_cycle','0',
-                    'Cycle from which we want to restart training, if any')
-flags.DEFINE_string('run','1',
+flags.DEFINE_integer('start_from_cycle','1',
+                    'Cycle from which we want to start evaluating')
+flags.DEFINE_boolean('during_training','False',
+                    'Indicates whether the evaluation is running during training or not')
+flags.DEFINE_integer('run','1',
                     'Number of current run')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
@@ -81,7 +77,6 @@ data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_150K_clean'}
-          #'set': 'train_ALL_clean_short'}
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -90,7 +85,6 @@ keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02834778'
 keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
 
 if __name__ == "__main__":
-
 
     assert FLAGS.train_dir, '`train_dir` is missing.'
     if FLAGS.task == 0: tf.gfile.MakeDirs(FLAGS.train_dir)
@@ -120,17 +114,12 @@ if __name__ == "__main__":
     eval_config = configs['eval_config']
     eval_input_config = configs['eval_input_config']
 
-    # Save number of test frames, as config is modified with unlabeled set
-    num_eval_frames = eval_config.num_examples
-
-    # Also original pointer to tfrecord
-    tfrecord_eval = eval_input_config.tf_record_input_reader.input_path[0]
-
     # Get experiment information from FLAGS
     name = FLAGS.name
-    num_cycles = int(FLAGS.cycles)
-    run_num = int(FLAGS.run)
+    num_cycles = FLAGS.cycles
+    run_num = FLAGS.run
     num_steps = str(train_config.num_steps)
+
 
     output_file = FLAGS.perf_dir + name + 'R' + str(run_num) + 'c' + str(num_cycles) + '.json'
 
@@ -157,7 +146,7 @@ if __name__ == "__main__":
     # Run evaluation once only
     eval_config.max_evals = 1
 
-    cycle = 1
+    cycle = int(FLAGS.start_from_cycle)
 
     train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
     future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
@@ -170,10 +159,6 @@ if __name__ == "__main__":
         def get_next_eval(config):
            return dataset_builder.make_initializable_iterator(
                dataset_builder.build(config)).get_next()
-
-        # Restore eval configuration on test
-        eval_config.num_examples = num_eval_frames
-        eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
 
         # Initialize input dict again (necessary?)
         create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
@@ -195,32 +180,37 @@ if __name__ == "__main__":
           eval_dir,
           graph_hook_fn=graph_rewriter_fn)
 
+        aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+        performances['R'+str(run_num)+'c'+str(cycle)]= aps
+
+        # Write current performance
+        json_str = json.dumps(performances)
+        f = open(output_file,'w')
+        f.write(json_str)
+        f.close()
 
         # Done with previous cycle
         if os.path.exists(future_train_dir):
 
-            # Make sure we save the very last one, evaluate one last time
-            tf.reset_default_graph()
+            if FLAGS.during_training:
+            # When also running during training, we need to run it one last time before moving on
+                tf.reset_default_graph()
+                metrics,_,_ = evaluator.evaluate(
+                  create_eval_input_dict_fn,
+                  eval_model_fn,
+                  eval_config,
+                  categories,
+                  train_dir,
+                  eval_dir,
+                  graph_hook_fn=graph_rewriter_fn)
+                aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+                performances['R'+str(run_num)+'c'+str(cycle)]= aps
 
-            metrics,_,_ = evaluator.evaluate(
-              create_eval_input_dict_fn,
-              eval_model_fn,
-              eval_config,
-              categories,
-              train_dir,
-              eval_dir,
-              graph_hook_fn=graph_rewriter_fn)
-
-            aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
-
-
-            performances['R'+str(run_num)+'c'+str(cycle)]= aps
-
-            # Write current performance
-            json_str = json.dumps(performances)
-            f = open(output_file,'w')
-            f.write(json_str)
-            f.close()
+                # Write current performance
+                json_str = json.dumps(performances)
+                f = open(output_file,'w')
+                f.write(json_str)
+                f.close()
 
             cycle +=1
             train_dir = future_train_dir

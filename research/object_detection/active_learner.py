@@ -60,13 +60,13 @@ flags.DEFINE_string('pipeline_config_path',
                     'file. If provided, other configs are ignored')
 flags.DEFINE_string('name', 'EntOnDetsxVid',
                     'Name of method to run')
-flags.DEFINE_string('cycles','20',
+flags.DEFINE_integer('cycles','20',
                     'Number of cycles')
-flags.DEFINE_string('epochs','10',
+flags.DEFINE_integer('epochs','10',
                     'Number of epochs')
-flags.DEFINE_string('restart_from_cycle','0',
+flags.DEFINE_integer('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
-flags.DEFINE_string('run','1',
+flags.DEFINE_integer('run','1',
                     'Number of current run')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
@@ -170,10 +170,10 @@ if __name__ == "__main__":
 
     # Get experiment information from FLAGS
     name = FLAGS.name
-    num_cycles = int(FLAGS.cycles)
-    run_num = int(FLAGS.run)
-    epochs = int(FLAGS.epochs)
-    restart_cycle = int(FLAGS.restart_from_cycle)
+    num_cycles = FLAGS.cycles
+    run_num = FLAGS.run
+    epochs = FLAGS.epochs
+    restart_cycle = FLAGS.restart_from_cycle
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
