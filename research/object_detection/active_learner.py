@@ -216,105 +216,120 @@ if __name__ == "__main__":
 
         #### Evaluation of trained model on unlabeled set to obtain data for selection
 
-        if 'Rnd' not in name and cycle < num_cycles:
+        ## Define directories
+        # Evaluation of detections, it might not be used
+        eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
 
-            eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
-
-            if os.path.exists(eval_train_dir + 'detections.dat'):
-                with open(eval_train_dir + 'detections.dat','rb') as infile:
-                    #detected_boxes = pickle.load(infile)
-                    detected_boxes = pickle.load(infile,encoding='latin1')
-            else:
-
-                # Get unlabeled set
-                data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
-
-                # Do not evaluate labeled samples, their neighbors or unverified frames
-                aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
-
-                unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-
-                # For TCFP, we need to get detections for pretty much every frame,
-                # as not candidates can may be used to support candidates
-
-                ##### CHANGE THIS, ONLY FOR THOSE FRAMES THAT MIGHT HAVE AN INFLUENCE IN DECISIONS
-                if ('TCFP' in name) or ('TCFN' in name):
-                    unlabeled_set = [i for i in range(len(dataset))]
-
-                print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-
-                save_tf_record(data_info,unlabeled_set)
-
-                # Set number of eval images to number of unlabeled samples and point to tfrecord
-                eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-                eval_config.num_examples = len(unlabeled_set)
-
-
-                def get_next_eval_train(config):
-                   return dataset_builder.make_initializable_iterator(
-                        dataset_builder.build(config)).get_next()
-
-                # Initialize input dict again (necessary?)
-                create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
-
-                graph_rewriter_fn = None
-                if 'graph_rewriter_config' in configs:
-                    graph_rewriter_fn = graph_rewriter_builder.build(
-                        configs['graph_rewriter_config'], is_training=False)
-
-                # Need to reset graph for evaluation
-                tf.reset_default_graph()
-
-                metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-                  create_eval_train_input_dict_fn,
-                  eval_model_fn,
-                  eval_config,
-                  categories,
-                  train_dir,
-                  eval_train_dir,
-                  graph_hook_fn=graph_rewriter_fn)
-
-                #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
-                with open(eval_train_dir + 'detections.dat','wb') as outfile:
-                    pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
-
-                print('Done computing detections in training set')
-
-
-                # Remove tfrecord used for training
-                if os.path.exists(data_info['output_path']):
-                    os.remove(data_info['output_path'])
-
-
-        #### Training of current cycle
+        # Training of current cycle
         train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
-        #Save active_set in train dir in case we want to restart training
-        with open(train_dir + 'active_set.txt', 'w') as f:
-            for item in active_set:
-                f.write('{}\n'.format(item))
+        # Create the training directory to save active set before training starts 
+        if not os.path.exists(train_dir):
+            os.mkdir(train_dir)
 
-        # Budget for each cycle is the number of videos (0.5% of train set)
-        if ('Rnd' in name):
-            indices = sel.select_random_video(dataset,videos,active_set)
+        # If an active set exists in current training dir, load it and resume training
+        if os.path.isfile(train_dir+ 'active_set.txt'):
+            with open(train_dir + 'active_set.txt', 'r') as f:
+                for line in f:
+                    active_set.append(int(line))
+
+        # Otherwise, select new indices to add on active_set here
         else:
-            if ('Ent' in name):
-                indices = sel.select_entropy_detections_video(dataset,videos,active_set,detected_boxes)
-            elif ('Lst' in name):
-                indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
-            elif ('TCFP' in name):
-                indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
-            elif ('FP_gt' in name):
-	            indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-            elif ('FN_gt' in name):
-	            indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-            elif ('FPN' in name):
-	            indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-            elif ('TCFN' in name):
-                indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+            if 'Rnd' not in name and cycle < num_cycles:
+                # We need to evaluate unlabeled frames if method is other than random
+                if os.path.exists(eval_train_dir + 'detections.dat'):
+                    with open(eval_train_dir + 'detections.dat','rb') as infile:
+                        #detected_boxes = pickle.load(infile)
+                        detected_boxes = pickle.load(infile,encoding='latin1')
+                else:
 
-        active_set.extend(indices)
+                    # Get unlabeled set
+                    data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
+
+                    # Do not evaluate labeled samples, their neighbors or unverified frames
+                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
+
+                    unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+
+                    # For TCFP, we need to get detections for pretty much every frame,
+                    # as not candidates can may be used to support candidates
+
+                    ##### CHANGE THIS, ONLY FOR THOSE FRAMES THAT MIGHT HAVE AN INFLUENCE IN DECISIONS
+                    if ('TCFP' in name) or ('TCFN' in name):
+                        unlabeled_set = [i for i in range(len(dataset))]
+
+                    print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
+
+                    save_tf_record(data_info,unlabeled_set)
+
+                    # Set number of eval images to number of unlabeled samples and point to tfrecord
+                    eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+                    eval_config.num_examples = len(unlabeled_set)
+
+
+                    def get_next_eval_train(config):
+                       return dataset_builder.make_initializable_iterator(
+                            dataset_builder.build(config)).get_next()
+
+                    # Initialize input dict again (necessary?)
+                    create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
+
+                    graph_rewriter_fn = None
+                    if 'graph_rewriter_config' in configs:
+                        graph_rewriter_fn = graph_rewriter_builder.build(
+                            configs['graph_rewriter_config'], is_training=False)
+
+                    # Need to reset graph for evaluation
+                    tf.reset_default_graph()
+
+                    metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+                      create_eval_train_input_dict_fn,
+                      eval_model_fn,
+                      eval_config,
+                      categories,
+                      train_dir,
+                      eval_train_dir,
+                      graph_hook_fn=graph_rewriter_fn)
+
+                    #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
+                    with open(eval_train_dir + 'detections.dat','wb') as outfile:
+                        pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+                    print('Done computing detections in training set')
+
+
+                    # Remove tfrecord used for training
+                    if os.path.exists(data_info['output_path']):
+                        os.remove(data_info['output_path'])
+
+
+            # Select the actual indices that will be added to the active set
+            if ('Rnd' in name):
+                indices = sel.select_random_video(dataset,videos,active_set)
+            else:
+                if ('Ent' in name):
+                    indices = sel.select_entropy_detections_video(dataset,videos,active_set,detected_boxes)
+                elif ('Lst' in name):
+                    indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
+                elif ('TCFP' in name):
+                    indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+                elif ('FP_gt' in name):
+                    indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                elif ('FN_gt' in name):
+                    indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                elif ('FPN' in name):
+                    indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                elif ('TCFN' in name):
+                    indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+
+            active_set.extend(indices)
+
+            #Save active_set in train dir 
+            with open(train_dir + 'active_set.txt', 'w') as f:
+                for item in active_set:
+                    f.write('{}\n'.format(item))
+
 
         data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
         save_tf_record(data_info,active_set)
@@ -326,8 +341,8 @@ if __name__ == "__main__":
         train_config.num_steps = epochs*len(active_set)
 
         # Reducing learning
-        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
-        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
 
 
         def get_next(config):
@@ -393,6 +408,8 @@ if __name__ == "__main__":
           is_chief,
           train_dir,
           graph_hook_fn=graph_rewriter_fn)
+
+
 
         # Remove tfrecord used for training
         if os.path.exists(data_info['output_path']):
