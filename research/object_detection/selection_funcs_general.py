@@ -35,9 +35,20 @@ def augment_active_set(dataset,videos,active_set,num_neighbors=5):
 
     return aug_active_set
 
+def select_dummy():
 
+    scores_videos = [[0.2, 0.2, 0.3],[0.1, 0.4]]
+    idx_videos = [[12312,1231244,66745],[133,144]]
 
-def compute_confidence_scores(dataset,videos,active_set,detections,num_neighbors=3):
+    # len(indices) = total budget
+    indices = select_frames(scores_videos, idx_videos, max_num_frames)
+
+    return indices
+
+def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
+    return 0
+
+def select_least_confidence(dataset,videos,active_set,detections,num_neighbors=3):
 
         thresh_detection = 0.5
 
