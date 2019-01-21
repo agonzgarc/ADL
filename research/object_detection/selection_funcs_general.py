@@ -7,7 +7,7 @@ import json
 import os
 import tensorflow as tf
 import imp
-
+import time
 
 
 
@@ -48,7 +48,7 @@ def select_dummy():
 def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
     return 0
 
-def select_least_confidence(dataset,videos,active_set,detections,num_neighbors=3):
+def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5):
 
         thresh_detection = 0.5
 
@@ -61,9 +61,10 @@ def select_least_confidence(dataset,videos,active_set,detections,num_neighbors=3
 
         scores_videos = []
         idx_videos = []
+        num_frames = []
 
+        t_start = time.time()
         for v in videos:
-
             # Select frames in current video
             frames = [f['idx'] for f in dataset if f['video'] == v]
 
@@ -79,28 +80,31 @@ def select_least_confidence(dataset,videos,active_set,detections,num_neighbors=3
                 avg_conf = []
                 for df in det_frames:
                     sel_dets = df[df > thresh_detection]
+
+                    # Do inverse of least confidence --> selection prioritizes higher scores
                     if len(sel_dets) > 0:
-                        acf = sel_dets.mean()
+                        acf = 1-sel_dets.mean()
                     else:
-                        acf = np.inf
+                        acf = 0
                     avg_conf.append(acf)
 
+                # Convert to array for easier processing
                 avg_conf = np.asarray(avg_conf)
-                # Select frames that achieve minimum
-                idx_min = np.where(avg_conf == np.min(avg_conf))
-                idx_sel = np.random.choice(idx_min[0])
 
-                indices.append(frames[idx_sel])
+                # Add scores
+                scores_videos.append(avg_conf)
 
-                scores_videos.append([-1])
-                idx_videos.append([-1])
+                # Frames already contains list of global indices
+                idx_videos.append(np.asarray(frames))
 
-            else:
-                # If we need video to preserve video idx, add dummy list
-                scores_videos.append([-1])
-                idx_videos.append([-1])
+                # Save number of frames for padding purposes
+                num_frames.append(len(frames))
 
-            #print("Selecting frame {} from video {} with idx {}".format(idxR,v,frames[idxR]))
+        elapsed_time = time.time() - t_start
+        print("All videos processed in:{:.2f} seconds".format(elapsed_time))
+
+        # Javad, call your function here
+
         return indices
 
 
