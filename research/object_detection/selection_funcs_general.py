@@ -131,8 +131,8 @@ def select_dummy():
 
     return indices
 
-def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
-    return 0
+#def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
+#    return 0
 
 
 def select_random(dataset,videos,active_set):
@@ -217,8 +217,93 @@ def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5)
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
         # Javad, call your function here
+	indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors,budget=100)
 
         return indices
+
+
+def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
+
+    number_of_vids=len(idx_videos)
+    vid_length=[len(v) for v in idx_videos]
+    max_vid_length=max(vid_length)
+
+    SCORES=np.zeros((number_of_vids,max_vid_length))
+    IDX=np.zeros((number_of_vids,max_vid_length),dtype=int)
+    CANDIDATES=np.zeros((number_of_vids,max_vid_length),dtype=int)-1
+    CANDIDATES_SC=np.zeros((number_of_vids,max_vid_length))-1
+
+    for v in range(number_of_vids):
+      idx=idx_videos[v]
+      scores=scores_videos[v]
+      SCORES[v,:]=np.pad(scores, (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
+      IDX[v,:]=np.pad(idx, (0,max_vid_length-len(idx)), 'constant', constant_values=-1)      
+    print('--------------------------------------------------------------------------------')
+
+    #--------------------------SORTING THE SCORES IN DESCENDING ORDER-----------------------
+    sorted_SCORES=np.flip(np.sort(SCORES,axis=1),1)
+    AUX=np.flip(np.argsort(SCORES,axis=1),1)  
+    sorted_INDICES=np.zeros((number_of_vids,max_vid_length),dtype=int)
+    for i in range(len(idx_videos)):
+    	sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
+    print('--------------------------------------------------------------------------------')
+
+    for v in range(0,number_of_vids):
+      iter=0
+      sorted_indices=sorted_INDICES[v,:]
+      sorted_scores=sorted_SCORES[v,:]
+      idx_max=sorted_indices[0]
+      score_max=sorted_scores[0]
+      while(score_max>=0):
+        print('score_max= ',score_max)
+        print('idx_max= ',idx_max)
+        print('video= ',v)      
+        print('iter= ',iter)
+        #print('sorted_indices= ',sorted_indices)
+        #print('sorted_scores= ',sorted_scores)
+        #print('idx_max= ',idx_max)
+        #print('score_max= ',score_max)    
+        CANDIDATES[v,iter]=idx_max
+        CANDIDATES_SC[v,iter]=score_max
+        left=max(idx_max-num_neighbors,0)
+        right=min(idx_max+num_neighbors,max(sorted_indices))
+        frames_to_remove=np.arange(left,right+1,1)
+        print('frames_to_remove= ',frames_to_remove)    
+        #print('frames to remove= ', frames_to_remove)
+        IND = np.in1d(sorted_indices, frames_to_remove) #intersection
+        shrinked_indices=sorted_indices[~IND] # removing frames from indices
+        shrinked_scores=sorted_scores[~IND] # removing frames from scores    
+        #print('shrinked_indices= ',shrinked_indices)
+        #print('shrinked_scores= ',shrinked_scores)
+        sorted_scores=shrinked_scores
+        sorted_indices=shrinked_indices
+        print('size of sorted indices= ',sorted_indices.size)
+        if sorted_indices.size != 0:
+           idx_max=sorted_indices[0]
+           score_max=sorted_scores[0]
+        else:
+           print('************************************************')
+           break
+        iter=iter+1    
+        print('************************************************')
+    
+    #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
+    b=0    
+    sel_idx=np.zeros(budget)
+    for j in range(0,len(CANDIDATES[0])):    
+        for i in range(0,len(CANDIDATES)):
+            print('i= ',i, ' j= ',j)
+            if CANDIDATES_SC[i,j]>=0:
+                sel_idx[b]=CANDIDATES[i,j]
+                b=b+1
+                if b==budget:
+                   break
+        if b==budget:
+           break        
+    print(sel_idx)
+    print('length of selected frames = ',len(sel_idx))
+    return sel_idx                
+
 
 def select_entropy(dataset,videos,active_set,detections):
 
@@ -265,7 +350,6 @@ def select_entropy(dataset,videos,active_set,detections):
 
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
-
 
         return indices
 
@@ -502,10 +586,5 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections)
 
     # Call selection function
     return indices
-
-
-
-
-
 
 
