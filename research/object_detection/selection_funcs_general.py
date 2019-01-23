@@ -154,8 +154,10 @@ def select_random(dataset,videos,active_set):
         if len(frames) > 0:
             random.shuffle(frames)
             idx_videos.append(np.asarray(frames))
+            scores_videos.append(np.zeros(len(frames)))
             num_frames.append(len(frames))
 
+    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=3,budget=3200)
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
@@ -217,7 +219,7 @@ def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5)
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
         # Javad, call your function here
-	indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors,budget=100)
+        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors,budget=100)
 
         return indices
 
