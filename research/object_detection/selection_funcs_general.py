@@ -304,7 +304,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
            break        
     print(sel_idx)
     print('length of selected frames = ',len(sel_idx))
-    return sel_idx                
+    return int(sel_idx)                
 
 
 def select_entropy(dataset,videos,active_set,detections):
