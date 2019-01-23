@@ -134,6 +134,30 @@ def select_dummy():
 def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
     return 0
 
+
+def select_random(dataset,videos,active_set):
+
+    # Random might start with an empty active_set (first cycle)
+    if active_set:
+        aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
+    else:
+        aug_active_set = active_set
+
+    unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+    scores_videos = []
+    idx_videos = []
+    num_frames = []
+
+    for v in videos:
+        frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
+        if len(frames) > 0:
+            random.shuffle(frames)
+            idx_videos.append(np.asarray(frames))
+            num_frames.append(len(frames))
+
+    return indices
+
 # Pass unlabeled set as argument instead of recomputing here?
 def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5):
 
@@ -195,8 +219,6 @@ def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5)
         # Javad, call your function here
 
         return indices
-
-
 
 def select_entropy(dataset,videos,active_set,detections):
 
@@ -477,7 +499,6 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections)
 
     elapsed_time = time.time() - t_start
     print("All videos processed in: {:.2f} seconds".format(elapsed_time))
-    pdb.set_trace()
 
     # Call selection function
     return indices
