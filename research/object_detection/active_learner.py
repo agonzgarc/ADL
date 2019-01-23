@@ -15,7 +15,7 @@ import imp
 import pickle
 
 from object_detection import trainer
-from object_detection import selection_funcs as sel
+from object_detection import selection_funcs_general as sel
 from object_detection import evaluator_al as evaluator
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
@@ -58,7 +58,7 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'EntOnDetsxVid',
+flags.DEFINE_string('name', 'TCFPEff',
                     'Name of method to run')
 flags.DEFINE_integer('cycles','20',
                     'Number of cycles')
@@ -84,6 +84,7 @@ data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_150K_clean'}
+          #'set': 'train_ALL_clean_short'}
 
 def get_dataset(data_info):
     """ Gathers information about the dataset given and stores it in a
@@ -110,7 +111,7 @@ def get_dataset(data_info):
             video = split_path[-3]+'/'+split_path[-2]
             dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
             idx+=1
-    videos = set([d['video'] for d in dataset])
+    videos = list(set([d['video'] for d in dataset]))
     return dataset,videos
 
 def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
@@ -221,15 +222,15 @@ if __name__ == "__main__":
         eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
 
         # Training of current cycle
-        train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
+        new_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
 
         # Create the training directory to save active set before training starts 
-        if not os.path.exists(train_dir):
-            os.mkdir(train_dir)
+        if not os.path.exists(new_train_dir):
+            os.mkdir(new_train_dir)
 
         # If an active set exists in current training dir, load it and resume training
-        if os.path.isfile(train_dir+ 'active_set.txt'):
-            with open(train_dir + 'active_set.txt', 'r') as f:
+        if os.path.isfile(new_train_dir+ 'active_set.txt'):
+            with open(new_train_dir + 'active_set.txt', 'r') as f:
                 for line in f:
                     active_set.append(int(line))
 
@@ -237,36 +238,37 @@ if __name__ == "__main__":
         else:
             if 'Rnd' not in name and cycle < num_cycles:
                 # We need to evaluate unlabeled frames if method is other than random
+
+                # Prepare candidates: all but labeled samples, their neighbors and unverified frames
+                aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
+                candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+                # In general, we need to evaluate only the candidates
+                evaluation_set = candidate_set
+
+                # For TC approches, we need to get extra detections besides candidates (surrounding frames)
+                if ('TCFP' in name) or ('TCFN' in name):
+                    aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
+                    evaluation_set = aug_candidate_set
+
+                print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
+                print('Frames to be evaluated: {}'.format(len(evaluation_set)))
+
+                # We might already have saved detections --> load them
                 if os.path.exists(eval_train_dir + 'detections.dat'):
                     with open(eval_train_dir + 'detections.dat','rb') as infile:
                         #detected_boxes = pickle.load(infile)
                         detected_boxes = pickle.load(infile,encoding='latin1')
                 else:
 
-                    # Get unlabeled set
+                    # Set path where candidate set will be saved
                     data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
 
-                    # Do not evaluate labeled samples, their neighbors or unverified frames
-                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
-
-                    unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-
-                    # For TCFP, we need to get detections for pretty much every frame,
-                    # as not candidates can may be used to support candidates
-
-                    ##### CHANGE THIS, ONLY FOR THOSE FRAMES THAT MIGHT HAVE AN INFLUENCE IN DECISIONS
-                    if ('TCFP' in name) or ('TCFN' in name):
-                        unlabeled_set = [i for i in range(len(dataset))]
-
-                    print('Unlabeled frames in the dataset: {}'.format(len(unlabeled_set)))
-
-                    save_tf_record(data_info,unlabeled_set)
+                    save_tf_record(data_info,evaluation_set)
 
                     # Set number of eval images to number of unlabeled samples and point to tfrecord
                     eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-                    eval_config.num_examples = len(unlabeled_set)
-
+                    eval_config.num_examples = len(evaluation_set)
 
                     def get_next_eval_train(config):
                        return dataset_builder.make_initializable_iterator(
@@ -295,7 +297,6 @@ if __name__ == "__main__":
                     #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
                     with open(eval_train_dir + 'detections.dat','wb') as outfile:
                         pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
-
                     print('Done computing detections in training set')
 
 
@@ -309,11 +310,12 @@ if __name__ == "__main__":
                 indices = sel.select_random_video(dataset,videos,active_set)
             else:
                 if ('Ent' in name):
-                    indices = sel.select_entropy_detections_video(dataset,videos,active_set,detected_boxes)
+                    indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
                 elif ('Lst' in name):
-                    indices = sel.select_least_confident_video(dataset,videos,active_set,detected_boxes)
+                    #indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
+                    indices = sel.select_entropy(dataset,videos,active_set,detected_boxes)
                 elif ('TCFP' in name):
-                    indices = sel.select_TCFP_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+                    indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes)
                 elif ('FP_gt' in name):
                     indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
                 elif ('FN_gt' in name):
@@ -326,10 +328,12 @@ if __name__ == "__main__":
             active_set.extend(indices)
 
             #Save active_set in train dir 
-            with open(train_dir + 'active_set.txt', 'w') as f:
+            with open(new_train_dir + 'active_set.txt', 'w') as f:
                 for item in active_set:
                     f.write('{}\n'.format(item))
 
+
+        train_dir = new_train_dir
 
         data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
         save_tf_record(data_info,active_set)
