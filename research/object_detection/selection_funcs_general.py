@@ -45,8 +45,8 @@ def select_dummy():
 
     return indices
 
-def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
-    return 0
+#def obtain_indices_best_frames(budget, scores_videos, idx_videos, max_num_frames):
+#    return 0
 
 def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5):
 
@@ -104,9 +104,86 @@ def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5)
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
         # Javad, call your function here
+	indices=top_score_frames_selector(budget, scores_videos, idx_videos)
 
         return indices
 
 
+def top_score_frames_selector(budget, scores_videos, idx_videos)
 
 
+    pdb.set_trace()
+
+    n=2 # neighbourhood
+    budget=3200
+    number_of_vids=800
+    max_vid_length=1000
+
+    SCORES=np.zeros((number_of_vids,max_vid_length))
+    CANDIDATES=np.zeros((number_of_vids,max_vid_length))-1
+    CANDIDATES_SC=np.zeros((number_of_vids,max_vid_length))-1
+
+    for vid in range(number_of_vids):
+    
+      length_of_vid=np.random.randint(max_vid_length, size=1)
+      print('length_of_vid= ', length_of_vid[0])
+      scores=np.random.randint(10, size=length_of_vid)
+      SCORES[vid,:]=np.pad(scores, (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
+    
+    print('--------------------------------------------------------------------------------')
+    #--------------------------SORTING THE SCORES IN DESCENDING ORDER-----------------------
+    sorted_INDICES=np.flip(np.argsort(SCORES,axis=1),1)  
+    sorted_SCORES=np.flip(np.sort(SCORES,axis=1),1)
+    print('--------------------------------------------------------------------------------')
+
+    for v in range(0,number_of_vids):
+      iter=0
+      sorted_indices=sorted_INDICES[v,:]
+      sorted_scores=sorted_SCORES[v,:]
+      idx_max=sorted_indices[0]
+      score_max=sorted_scores[0]
+      
+      while(score_max>=0):
+        print('video= ',v)      
+        print('iter= ',iter)
+        #print('sorted_indices= ',sorted_indices)
+        #print('sorted_scores= ',sorted_scores)
+        #print('idx_max= ',idx_max)
+        #print('score_max= ',score_max)    
+        CANDIDATES[v,iter]=idx_max
+        CANDIDATES_SC[v,iter]=score_max
+        left=max(idx_max-n,0)
+        right=min(idx_max+n,max_vid_length)
+        frames_to_remove=np.arange(left,right+1,1)
+        #print('frames to remove= ', frames_to_remove)
+        IND = np.in1d(sorted_indices, frames_to_remove) #intersection    
+        shrinked_indices=sorted_indices[~IND] # removing frames from indices
+        shrinked_scores=sorted_scores[~IND] # removing frames from scores    
+        #print('shrinked_indices= ',shrinked_indices)
+        #print('shrinked_scores= ',shrinked_scores)
+        sorted_scores=shrinked_scores
+        sorted_indices=shrinked_indices
+        if sorted_indices.size != 0:
+           idx_max=sorted_indices[0]
+           score_max=sorted_scores[0]
+        else:
+           print('************************************************')
+           break
+        iter=iter+1    
+        print('************************************************')
+    
+    #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
+    b=0    
+    sel_idx=np.zeros(budget)
+    for j in range(0,len(CANDIDATES[0])):    
+        for i in range(0,len(CANDIDATES)):
+            print('i= ',i, ' j= ',j)
+            if CANDIDATES_SC[i,j]>=0:
+                sel_idx[b]=CANDIDATES[i,j]
+                b=b+1
+                if b==budget:
+                   break
+        if b==budget:
+           break        
+    print(sel_idx)
+    print('length of selected frames = ',len(sel_idx))                
