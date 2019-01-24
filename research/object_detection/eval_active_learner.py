@@ -190,7 +190,7 @@ if __name__ == "__main__":
         f.close()
 
         # Done with previous cycle
-        if os.path.exists(future_train_dir):
+        if os.path.exists(future_train_dir+'checkpoint'):
 
             if FLAGS.during_training:
             # When also running during training, we need to run it one last time before moving on

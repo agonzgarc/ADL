@@ -154,10 +154,8 @@ def select_random(dataset,videos,active_set):
         if len(frames) > 0:
             random.shuffle(frames)
             idx_videos.append(np.asarray(frames))
-            scores_videos.append(np.zeros(len(frames)))
             num_frames.append(len(frames))
 
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=3,budget=3200)
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
@@ -219,9 +217,12 @@ def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5)
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
         # Javad, call your function here
-        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors,budget=100)
+	indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors,budget=100)
 
         return indices
+
+<<<<<<< HEAD
+=======
 
 
 def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
@@ -239,17 +240,16 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
       idx=idx_videos[v]
       scores=scores_videos[v]
       SCORES[v,:]=np.pad(scores, (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
-      IDX[v,:]=np.pad(idx, (0,max_vid_length-len(idx)), 'constant', constant_values=-1)
+      IDX[v,:]=np.pad(idx, (0,max_vid_length-len(idx)), 'constant', constant_values=-1)      
     print('--------------------------------------------------------------------------------')
 
     #--------------------------SORTING THE SCORES IN DESCENDING ORDER-----------------------
     sorted_SCORES=np.flip(np.sort(SCORES,axis=1),1)
     AUX=np.flip(np.argsort(SCORES,axis=1),1)  
     sorted_INDICES=np.zeros((number_of_vids,max_vid_length),dtype=int)
-    for i in range(number_of_vids):
+    for i in range(len(idx_videos)):
     	sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
     print('--------------------------------------------------------------------------------')
-
 
     for v in range(0,number_of_vids):
       iter=0
@@ -292,7 +292,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
     
     #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
     b=0    
-    sel_idx=np.zeros(budget,dtype=int)
+    sel_idx=np.zeros(budget)
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             print('i= ',i, ' j= ',j)
@@ -308,6 +308,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
     return sel_idx                
 
 
+>>>>>>> fd39e25a4c203f8a36246e6ea96041fe2ec492a3
 def select_entropy(dataset,videos,active_set,detections):
 
         thresh_detection = 0.5
