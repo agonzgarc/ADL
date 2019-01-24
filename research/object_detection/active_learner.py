@@ -83,7 +83,8 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
+	  'set': 'train_75K_clean_short'}
+          #'set': 'train_150K_clean'}
           #'set': 'train_ALL_clean_short'}
 
 def get_dataset(data_info):
@@ -254,11 +255,12 @@ if __name__ == "__main__":
                 print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
                 print('Frames to be evaluated: {}'.format(len(evaluation_set)))
 
+
                 # We might already have saved detections --> load them
                 if os.path.exists(eval_train_dir + 'detections.dat'):
                     with open(eval_train_dir + 'detections.dat','rb') as infile:
-                        #detected_boxes = pickle.load(infile)
-                        detected_boxes = pickle.load(infile,encoding='latin1')
+                        detected_boxes = pickle.load(infile)
+                        #detected_boxes = pickle.load(infile,encoding='latin1')
                 else:
 
                     # Set path where candidate set will be saved

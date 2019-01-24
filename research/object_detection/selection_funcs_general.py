@@ -214,16 +214,17 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
       idx=idx_videos[v]
       scores=scores_videos[v]
       SCORES[v,:]=np.pad(scores, (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
-      IDX[v,:]=np.pad(idx, (0,max_vid_length-len(idx)), 'constant', constant_values=-1)      
+      IDX[v,:]=np.pad(idx, (0,max_vid_length-len(idx)), 'constant', constant_values=-1)
     print('--------------------------------------------------------------------------------')
 
     #--------------------------SORTING THE SCORES IN DESCENDING ORDER-----------------------
     sorted_SCORES=np.flip(np.sort(SCORES,axis=1),1)
     AUX=np.flip(np.argsort(SCORES,axis=1),1)  
     sorted_INDICES=np.zeros((number_of_vids,max_vid_length),dtype=int)
-    for i in range(len(idx_videos)):
+    for i in range(number_of_vids):
     	sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
     print('--------------------------------------------------------------------------------')
+
 
     for v in range(0,number_of_vids):
       iter=0
@@ -266,7 +267,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
     
     #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
     b=0    
-    sel_idx=np.zeros(budget)
+    sel_idx=np.zeros(budget,dtype=int)
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             print('i= ',i, ' j= ',j)
