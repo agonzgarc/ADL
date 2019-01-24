@@ -224,6 +224,102 @@ def select_least_confident(dataset,videos,active_set,detections,num_neighbors=5)
         return indices
 
 
+def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
+	
+        #data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
+	score_thresh=0.5
+	iou_thresh=0.5 	    
+        #indices = []
+        scores_videos = []
+        idx_videos = []
+
+        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=5)
+        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+        # We have detections only for the labeled dataset, be careful with indexing
+        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
+
+	BOXES = detections['boxes'] 
+	SCORES= detections['scores']
+	gt_boxes = groundtruth_boxes['boxes']
+
+        stat_data={}
+        stat_data['videos_wo_FPN']=[]
+        stat_data['FPN_info']=[]
+
+        for v in videos:            
+        
+            # Select frames in current video
+            frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
+
+            # If all frames of video are in active set, ignore video
+
+            if len(frames) > 0:
+	       j=0 	       
+	       FP = np.zeros((len(frames)))
+	       FN = np.zeros((len(frames)))
+               for f in frames:
+                    anno_ind=unlabeled_set.index(f)
+  		    ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+		    boxes=np.array(BOXES[anno_ind])[ind,:]
+	            # FP selection part            
+		    if boxes.any(): # if the frame has detections with high score
+		       if gt_boxes[anno_ind].any():
+                  	  # Compute IOU between gt and detected bbox 
+		  	  iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+		  	  iou=iou_mat.max(axis=0)
+		  	  # identify detections with IOU lower than threshold 			
+		  	  low_iou=iou<iou_thresh 
+		  	  # Check if there are multiple detections for single groundtruth box
+	          	  max_thresh=np.zeros(len(iou))
+		  	  temp=iou_mat.argmax(axis=1) 
+		  	  max_thresh[temp]=1;
+                          #pdb.set_trace()
+	          	  false_pos=low_iou | np.logical_not(max_thresh)
+		  	  FP[j]=sum(false_pos)
+		       else:
+		          FP[j]=len(boxes) 		                
+	            # FN selection part                      
+		    if gt_boxes[anno_ind].any():	           		    
+		       if boxes.any():
+                  	  # Compute IOU between gt and detected bbox 
+		  	  iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
+		  	  iou=iou_mat.max(axis=1)
+		  	  # identify gt_boxes having low IOU with detected_boxes 			
+		  	  low_iou=iou<iou_thresh 
+		  	  FN[j]=sum(low_iou)
+		       else:
+		          FN[j]=len(gt_boxes[anno_ind])			
+                    j+=1               
+	       FPN=FP+FN
+
+               #if sum(FPN)==0:   # case there is no False Positive or False Negative in this video
+               #   idx_sel=random.randint(0,len(FPN)-1)
+               #   stat_data['videos_wo_FPN'].append({'video':v})    
+	       #else:
+               #   idx_max_FPN = np.where(FPN == max(FPN))
+	       #   FN_max=np.where(FN[idx_max_FPN]==max(FN[idx_max_FPN])) # From the frames with max FPN choose frame with max FN
+               #   idx_rnd = np.random.choice(FN_max[0])
+	       #   idx_sel=idx_max_FPN[0][idx_rnd]
+                  
+		  #print('FPN= ',FPN)
+                  #print('FP= ',FP[idx_sel])
+                  #print('FN= ',FN[idx_sel])
+                  #print('idx_sel= ',idx_sel)
+                  #pdb.set_trace()
+
+	       #indices.append(frames[idx_sel])
+               #print("Selecting frame {} from video {} with idx {}".format(idx_sel,v,frames[idx_sel]))
+	       ##print(dataset[frames[idx_sel]]['filename'])
+               #stat_data['FPN_info'].append({'video':v,'frame':frames[idx_sel],'FPN_loc':idx_sel,'FN_value':FN[idx_sel],'FP_value':FP[idx_sel],'video_length':len(frames)})
+
+        #output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FPN_stat_data_cycle'+str(cycle)+'.json'
+        #with open(output_file, 'w') as fpn:
+        #     json.dump(stat_data, fpn)
+
+        return indices
+
+
 def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
 
     number_of_vids=len(idx_videos)
@@ -292,7 +388,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
     
     #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
     b=0    
-    sel_idx=np.zeros(budget,dtype=int)
+    sel_idx=np.zeros(budget,dtype=int)-1
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             print('i= ',i, ' j= ',j)
@@ -303,9 +399,10 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
                    break
         if b==budget:
            break        
-    print(sel_idx)
-    print('length of selected frames = ',len(sel_idx))
-    return sel_idx                
+    indices=idx_sel[idx_sel>=0]
+    print(indices)
+    print('length of selected frames = ',len(indices))
+    return indices                
 
 
 def select_entropy(dataset,videos,active_set,detections):
