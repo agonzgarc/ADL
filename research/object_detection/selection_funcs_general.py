@@ -295,6 +295,7 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
                scores_videos.append(FPN)
                idx_videos.append(np.asarray(frames))
 
+	       #-----------------------------------------------------------------------------------------------------------------
                #if sum(FPN)==0:   # case there is no False Positive or False Negative in this video
                #   idx_sel=random.randint(0,len(FPN)-1)
                #   stat_data['videos_wo_FPN'].append({'video':v})    
@@ -318,7 +319,9 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
         #output_file = '/datatmp/Experiments/Javad/tf/data/ILSVRC/stat_data/FPN_stat_data_cycle'+str(cycle)+'.json'
         #with open(output_file, 'w') as fpn:
         #     json.dump(stat_data, fpn)
+	#-----------------------------------------------------------------------------------------------------------------
 
+        indices=top_score_frames_selector(scores_videos, idx_videos, num_neighbors, budget=3200)
         return indices
 
 
