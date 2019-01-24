@@ -292,6 +292,8 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
 		          FN[j]=len(gt_boxes[anno_ind])			
                     j+=1               
 	       FPN=FP+FN
+               scores_videos.append(FPN)
+               idx_videos.append(np.asarray(frames))
 
                #if sum(FPN)==0:   # case there is no False Positive or False Negative in this video
                #   idx_sel=random.randint(0,len(FPN)-1)
@@ -399,7 +401,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
                    break
         if b==budget:
            break        
-    indices=idx_sel[idx_sel>=0]
+    indices=sel_idx[sel_idx>=0]
     print(indices)
     print('length of selected frames = ',len(indices))
     return indices                
