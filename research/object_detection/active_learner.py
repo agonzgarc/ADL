@@ -33,7 +33,7 @@ from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
 
 tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.set_verbosity(tf.logging.WARN)
+#tf.logging.set_verbosity(tf.logging.WARN)
 
 flags = tf.app.flags
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -58,9 +58,9 @@ flags.DEFINE_string('pipeline_config_path',
                     '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'LstEff',
+flags.DEFINE_string('name', 'RndGen',
                     'Name of method to run')
-flags.DEFINE_integer('cycles','20',
+flags.DEFINE_integer('cycles','6',
                     'Number of cycles')
 flags.DEFINE_integer('epochs','10',
                     'Number of epochs')

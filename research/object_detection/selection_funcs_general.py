@@ -291,7 +291,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
     
     #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
     b=0    
-    sel_idx=np.zeros(budget)
+    sel_idx=np.zeros(budget,dtype=int)
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             print('i= ',i, ' j= ',j)
@@ -304,7 +304,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors,budget):
            break        
     print(sel_idx)
     print('length of selected frames = ',len(sel_idx))
-    return int(sel_idx)                
+    return sel_idx                
 
 
 def select_entropy(dataset,videos,active_set,detections):
