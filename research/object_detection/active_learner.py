@@ -48,17 +48,17 @@ flags.DEFINE_integer('worker_replicas', 1, 'Number of worker+trainer '
 flags.DEFINE_integer('ps_tasks', 0,
                      'Number of parameter server tasks. If None, does not use '
                      'a parameter server.')
-flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/checkpoints/',
+flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet50_coco/checkpoints/',
                     'Directory to save the checkpoints and training summaries.')
-flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/performances/',
+flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/',
                     'Directory to save performance json files.')
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
+                    '/home/abel/DATA/faster_rcnn/resnet50_coco/configs/faster_rcnn_resnet50_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'RndGen',
+flags.DEFINE_string('name', 'Rnd',
                     'Name of method to run')
 flags.DEFINE_integer('cycles','6',
                     'Number of cycles')
@@ -83,9 +83,7 @@ FLAGS = flags.FLAGS
 data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-	  'set': 'train_75K_clean_short'}
-          #'set': 'train_150K_clean'}
-          #'set': 'train_ALL_clean_short'}
+          'set': 'train_150K_clean'}
 
 def get_dataset(data_info):
     """ Gathers information about the dataset given and stores it in a
@@ -212,7 +210,7 @@ if __name__ == "__main__":
     active_set = []
     with open(train_dir + 'active_set.txt', 'r') as f:
         for line in f:
-            active_set.append(int(line))
+           active_set.append(int(line))
 
     for cycle in range(restart_cycle+1,num_cycles+1):
 
@@ -241,7 +239,7 @@ if __name__ == "__main__":
                 # We need to evaluate unlabeled frames if method is other than random
 
                 # Prepare candidates: all but labeled samples, their neighbors and unverified frames
-                aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=5)
+                aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=3)
                 candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
                 # In general, we need to evaluate only the candidates
@@ -345,10 +343,13 @@ if __name__ == "__main__":
         # Set number of steps based on epochs
         train_config.num_steps = epochs*len(active_set)
 
-        # Reducing learning
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
+        # Reducing learning by /5 at 4, by /5 at 8
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.4*epochs*len(active_set))
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.8*epochs*len(active_set))
 
+        # Reduce /10 at 5, /10 at 7.5
+        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
+        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
 
         def get_next(config):
          return dataset_builder.make_initializable_iterator(

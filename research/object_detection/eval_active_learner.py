@@ -41,14 +41,14 @@ flags.DEFINE_integer('worker_replicas', 1, 'Number of worker+trainer '
 flags.DEFINE_integer('ps_tasks', 0,
                      'Number of parameter server tasks. If None, does not use '
                      'a parameter server.')
-flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/checkpoints/',
+flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet50_coco/checkpoints/',
                     'Directory to save the checkpoints and training summaries.')
-flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/performances/',
+flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/',
                     'Directory to save performance json files.')
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_imagenetvid-active_learning-fR5.config',
+                    '/home/abel/DATA/faster_rcnn/resnet50_coco/configs/faster_rcnn_resnet50_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
 flags.DEFINE_string('name', 'RndxVidFrom0',
