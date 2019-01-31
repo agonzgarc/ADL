@@ -1,0 +1,5 @@
+{
+	"root_dataset": "siamfc/data",
+	"root_pretrained": "siamfc/pretrained",
+	"root_parameters": "siamfc/parameters"
+}

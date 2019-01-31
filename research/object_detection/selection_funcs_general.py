@@ -469,7 +469,7 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections)
 
     scores_videos = []
     idx_videos = []
-    num_frames = []
+    #num_frames = []
 
     t_start = time.time()
 
@@ -669,7 +669,7 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections)
 
             scores_videos.append(tc_scores)
             idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
-            num_frames.append(len(frames_candidate))
+            #num_frames.append(len(frames_candidate))
 
             print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
 
@@ -677,6 +677,7 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections)
     print("All videos processed in: {:.2f} seconds".format(elapsed_time))
 
     # Call selection function
+    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=3200)
     return indices
 
 

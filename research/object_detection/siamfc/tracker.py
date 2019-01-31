@@ -22,13 +22,25 @@ from siamfc.visualization import show_frame, show_crops, show_scores
 from siamfc.convolutional import set_convolutional
 from siamfc.crops import extract_crops_z, extract_crops_x, pad_frame, resize_images
 
-_conv_stride = np.array([2,1,1,1,1])
-_filtergroup_yn = np.array([0,1,0,1,1], dtype=bool)
-_bnorm_yn = np.array([1,1,1,1,0], dtype=bool)
-_relu_yn = np.array([1,1,1,1,0], dtype=bool)
-_pool_stride = np.array([2,1,0,0,0]) # 0 means no pool
+# Configuration for 5 convolutional layers
+#_conv_stride = np.array([2,1,1,1,1])
+#_filtergroup_yn = np.array([0,1,0,1,1], dtype=bool)
+#_bnorm_yn = np.array([1,1,1,1,0], dtype=bool)
+#_relu_yn = np.array([1,1,1,1,0], dtype=bool)
+#_pool_stride = np.array([2,1,0,0,0]) # 0 means no pool
+#_pool_sz = 3
+#_bnorm_adjust = True
+
+_conv_stride = np.array([2,1])
+_filtergroup_yn = np.array([0,1], dtype=bool)
+_bnorm_yn = np.array([1,1], dtype=bool)
+_relu_yn = np.array([1,1], dtype=bool)
+_pool_stride = np.array([2,1]) # 0 means no pool
 _pool_sz = 3
-_bnorm_adjust = True
+_bnorm_adjust = False
+
+
+
 assert len(_conv_stride) == len(_filtergroup_yn) == len(_bnorm_yn) == len(_relu_yn) == len(_pool_stride), ('These arrays of flags should have same length')
 assert all(_conv_stride) >= True, ('The number of conv layers is assumed to define the depth of the network')
 _num_layers = len(_conv_stride)
