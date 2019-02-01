@@ -21,7 +21,7 @@ from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
 from object_detection.utils import config_util
-from object_detection.save_subset_imagenetvid_tf_record import save_tf_record
+from object_detection.save_subset_tf_record import save_tf_record
 from object_detection.utils import label_map_util
 from object_detection.utils import np_box_ops
 from object_detection.utils import np_box_list
@@ -62,12 +62,14 @@ flags.DEFINE_string('name', 'Rnd',
                     'Name of method to run')
 flags.DEFINE_integer('cycles','6',
                     'Number of cycles. If 0 is given, training cycle 0 (with emtpy inital set)')
-flags.DEFINE_integer('epochs','10',
+flags.DEFINE_integer('epochs','6',
                     'Number of epochs')
 flags.DEFINE_integer('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
 flags.DEFINE_integer('run','1',
                     'Number of current run')
+flags.DEFINE_integer('batch_size','12',
+                    'Number of samples in the mini-batch')
 flags.DEFINE_string('dataset', 'imagenet',
                     'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
@@ -88,12 +90,14 @@ if FLAGS.dataset == 'imagenet':
           'dataset': FLAGS.dataset,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_150K_clean'}
+          #'set': 'train_short_clean'}
 elif FLAGS.dataset == 'synthia':
     data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'dataset': FLAGS.dataset,
           'label_map_path': './data/synthia_label_map.pbtxt',
           'set': 'train'}
+          #'set': 'train_short'}
 else:
    raise ValueError('Dataset error: select imagenet or synthia')
 
@@ -123,7 +127,7 @@ def get_dataset(data_info):
                 video = split_path[-3]+'/'+split_path[-2]
                 dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
                 idx+=1
-        elif data_info['synthia'] == 'synthia':
+        elif data_info['dataset'] == 'synthia':
             for path in pF:
                 split_path = path.split('/')
                 filename = split_path[-1][:-1]
@@ -196,6 +200,7 @@ if __name__ == "__main__":
     num_cycles = FLAGS.cycles
     run_num = FLAGS.run
     epochs = FLAGS.epochs
+    batch_size = FLAGS.batch_size
     restart_cycle = FLAGS.restart_from_cycle
 
     # This is the detection model to be used (Faster R-CNN)
@@ -219,11 +224,15 @@ if __name__ == "__main__":
     # Run evaluation once only
     eval_config.max_evals = 1
 
+    # Create subdirectory for dataset if it doesn't exist yet
+    if not os.path.exists(os.path.join(FLAGS.train_dir,FLAGS.dataset)):
+        os.mkdir(os.path.join(FLAGS.train_dir,FLAGS.dataset))
+
     # Load active set from cycle 0 and point to right model
     if restart_cycle==0:
-        train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
+        train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,'R'+str(run_num)+'cycle0/')
     else:
-        train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(restart_cycle) + '/'
+        train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(restart_cycle))
 
     active_set = []
 
@@ -242,7 +251,7 @@ if __name__ == "__main__":
             os.mkdir(train_dir)
 
         #Save active_set in train dir
-        with open(train_dir + 'active_set.txt', 'w') as f:
+        with open(train_dir + '/active_set.txt', 'w') as f:
             for item in active_set:
                 f.write('{}\n'.format(item))
 
@@ -252,11 +261,11 @@ if __name__ == "__main__":
         input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
 
         # Set number of steps based on epochs
-        train_config.num_steps = epochs*len(active_set)
+        train_config.num_steps = int(epochs*len(active_set)/batch_size)
 
         # Reducing learning by /5 at 4, by /5 at 8
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.4*epochs*len(active_set))
-        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.8*epochs*len(active_set))
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(3*len(active_set)/batch_size)
+        train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(5*len(active_set)/batch_size)
 
         def get_next(config):
          return dataset_builder.make_initializable_iterator(
@@ -330,7 +339,7 @@ if __name__ == "__main__":
 
     else:
         # All other cycles after 0
-        with open(train_dir + 'active_set.txt', 'r') as f:
+        with open(train_dir + '/active_set.txt', 'r') as f:
             for line in f:
                active_set.append(int(line))
 
@@ -343,15 +352,15 @@ if __name__ == "__main__":
             eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
 
             # Training of current cycle
-            new_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
+            new_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset, name + 'R' + str(run_num) + 'cycle' +  str(cycle))
 
             # Create the training directory to save active set before training starts
             if not os.path.exists(new_train_dir):
                 os.mkdir(new_train_dir)
 
             # If an active set exists in current training dir, load it and resume training
-            if os.path.isfile(new_train_dir+ 'active_set.txt'):
-                with open(new_train_dir + 'active_set.txt', 'r') as f:
+            if os.path.isfile(new_train_dir+ '/active_set.txt'):
+                with open(new_train_dir + '/active_set.txt', 'r') as f:
                     for line in f:
                         active_set.append(int(line))
 
@@ -436,7 +445,7 @@ if __name__ == "__main__":
                     elif ('Lst' in name):
                         indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
                     elif ('TCFP' in name):
-                        indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes)
+                        indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'])
                     elif ('FP_gt' in name):
                         indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
                     elif ('FN_gt' in name):
@@ -449,7 +458,7 @@ if __name__ == "__main__":
                 active_set.extend(indices)
 
                 #Save active_set in train dir
-                with open(new_train_dir + 'active_set.txt', 'w') as f:
+                with open(new_train_dir + '/active_set.txt', 'w') as f:
                     for item in active_set:
                         f.write('{}\n'.format(item))
 
@@ -463,15 +472,11 @@ if __name__ == "__main__":
 
 
             # Set number of steps based on epochs
-            train_config.num_steps = epochs*len(active_set)
+            train_config.num_steps = int(epochs*len(active_set)/batch_size)
 
             # Reducing learning by /5 at 4, by /5 at 8
-            train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.4*epochs*len(active_set))
-            train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.8*epochs*len(active_set))
-
-            # Reduce /10 at 5, /10 at 7.5
-            #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
-            #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
+            train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(3*len(active_set)/batch_size)
+            train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(5*len(active_set)/batch_size)
 
             def get_next(config):
              return dataset_builder.make_initializable_iterator(
