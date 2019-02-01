@@ -53,7 +53,7 @@ flags.DEFINE_string('pipeline_config_path',
                     'file. If provided, other configs are ignored')
 flags.DEFINE_string('name', 'RndxVidFrom0',
                     'Name of method to run')
-flags.DEFINE_integer('cycles','20',
+flags.DEFINE_integer('cycles','6',
                     'Number of cycles')
 flags.DEFINE_integer('start_from_cycle','1',
                     'Cycle from which we want to start evaluating')
@@ -61,6 +61,8 @@ flags.DEFINE_boolean('during_training','False',
                     'Indicates whether the evaluation is running during training or not')
 flags.DEFINE_integer('run','1',
                     'Number of current run')
+flags.DEFINE_string('dataset', 'imagenet',
+                    'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -70,13 +72,22 @@ flags.DEFINE_string('model_config_path', '',
 
 FLAGS = flags.FLAGS
 
-
-# This should be a custom name per method once we can overwrite fields in
-# pipeline_file
-data_info = {'data_dir': FLAGS.data_dir,
+if FLAGS.dataset == 'imagenet':
+    data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
+          'dataset': FLAGS.dataset,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_150K_clean'}
+          #'set': 'train_short_clean'}
+elif FLAGS.dataset == 'synthia':
+    data_info = {'data_dir': FLAGS.data_dir,
+          'annotations_dir':'Annotations',
+          'dataset': FLAGS.dataset,
+          'label_map_path': './data/synthia_label_map.pbtxt',
+          'set': 'train'}
+          #'set': 'train_short'}
+else:
+   raise ValueError('Dataset error: select imagenet or synthia')
 
 # Harcoded keys to retrieve metrics
 keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
@@ -121,7 +132,8 @@ if __name__ == "__main__":
     num_steps = str(train_config.num_steps)
 
 
-    output_file = FLAGS.perf_dir + name + 'R' + str(run_num) + 'c' + str(num_cycles) + '.json'
+    output_file = os.path.join(FLAGS.perf_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'c' + str(num_cycles) +'.json')
+    #output_file = FLAGS.perf_dir + name + 'R' + str(run_num) + 'c' + str(num_cycles) + '.json'
 
     # Dictionary to save performance of every run
     performances = {}
@@ -148,8 +160,8 @@ if __name__ == "__main__":
 
     cycle = int(FLAGS.start_from_cycle)
 
-    train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
-    future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
+    train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(cycle) +'/')
+    future_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(cycle+1) +'/')
 
     while True:
         #### Evaluation of trained model on test set to record performance
@@ -180,7 +192,8 @@ if __name__ == "__main__":
           eval_dir,
           graph_hook_fn=graph_rewriter_fn)
 
-        aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+        #aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+        aps = [metrics[keyAll]]
         performances['R'+str(run_num)+'c'+str(cycle)]= aps
 
         # Write current performance
@@ -203,7 +216,8 @@ if __name__ == "__main__":
                   train_dir,
                   eval_dir,
                   graph_hook_fn=graph_rewriter_fn)
-                aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+                #aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
+                aps = [metrics[keyAll]]
                 performances['R'+str(run_num)+'c'+str(cycle)]= aps
 
                 # Write current performance
@@ -214,6 +228,6 @@ if __name__ == "__main__":
 
             cycle +=1
             train_dir = future_train_dir
-            future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
+            future_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(cycle+1) +'/')
 
 
