@@ -61,13 +61,15 @@ flags.DEFINE_string('pipeline_config_path',
 flags.DEFINE_string('name', 'Rnd',
                     'Name of method to run')
 flags.DEFINE_integer('cycles','6',
-                    'Number of cycles')
+                    'Number of cycles. If 0 is given, training cycle 0 (with emtpy inital set)')
 flags.DEFINE_integer('epochs','10',
                     'Number of epochs')
 flags.DEFINE_integer('restart_from_cycle','0',
                     'Cycle from which we want to restart training, if any')
 flags.DEFINE_integer('run','1',
                     'Number of current run')
+flags.DEFINE_string('dataset', 'imagenet',
+                    'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -80,10 +82,20 @@ FLAGS = flags.FLAGS
 
 # This should be a custom name per method once we can overwrite fields in
 # pipeline_file
-data_info = {'data_dir': FLAGS.data_dir,
+if FLAGS.dataset == 'imagenet':
+    data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
+          'dataset': FLAGS.dataset,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_150K_clean'}
+elif FLAGS.dataset == 'synthia':
+    data_info = {'data_dir': FLAGS.data_dir,
+          'annotations_dir':'Annotations',
+          'dataset': FLAGS.dataset,
+          'label_map_path': './data/synthia_label_map.pbtxt',
+          'set': 'train'}
+else:
+   raise ValueError('Dataset error: select imagenet or synthia')
 
 def get_dataset(data_info):
     """ Gathers information about the dataset given and stores it in a
@@ -99,17 +111,28 @@ def get_dataset(data_info):
     path_file = os.path.join(data_info['data_dir'],'AL', data_info['set'] + '.txt')
     with open(path_file,'r') as pF:
         idx = 0
-        for line in pF:
-            # Separate frame path and clean annotation flag
-            split_line = line.split(' ')
-            # Remove trailing \n
-            verified = True if split_line[1][:-1] == '1' else False
-            path = split_line[0]
-            split_path = path.split('/')
-            filename = split_path[-1]
-            video = split_path[-3]+'/'+split_path[-2]
-            dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
-            idx+=1
+        if data_info['dataset'] == 'imagenet':
+            for line in pF:
+                # Separate frame path and clean annotation flag
+                split_line = line.split(' ')
+                # Remove trailing \n
+                verified = True if split_line[1][:-1] == '1' else False
+                path = split_line[0]
+                split_path = path.split('/')
+                filename = split_path[-1]
+                video = split_path[-3]+'/'+split_path[-2]
+                dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
+                idx+=1
+        elif data_info['synthia'] == 'synthia':
+            for path in pF:
+                split_path = path.split('/')
+                filename = split_path[-1][:-1]
+                video = split_path[-4]+'/'+split_path[-3]
+                dataset.append({'idx':idx,'filename':filename,'video':video,'verified':True})
+                idx+=1
+        else:
+            raise ValueError('Dataset error: select imagenet or synthia')
+
     videos = list(set([d['video'] for d in dataset]))
     return dataset,videos
 
@@ -199,146 +222,34 @@ if __name__ == "__main__":
     # Load active set from cycle 0 and point to right model
     if restart_cycle==0:
         train_dir = FLAGS.train_dir + 'R' + str(run_num) + 'cycle0/'
-        #train_config.fine_tune_checkpoint = train_dir + 'model.ckpt'
     else:
         train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(restart_cycle) + '/'
-        # Get actual checkpoint model
-        #with open(train_dir+'checkpoint','r') as cfile:
-            #line = cfile.readlines()
-            #train_config.fine_tune_checkpoint = line[0].split(' ')[1][1:-2]
 
     active_set = []
-    with open(train_dir + 'active_set.txt', 'r') as f:
-        for line in f:
-           active_set.append(int(line))
 
-    for cycle in range(restart_cycle+1,num_cycles+1):
+    # Special case for cycle 0
+    if num_cycles == 0:
 
-        #### Evaluation of trained model on unlabeled set to obtain data for selection
+        cycle = 0
 
-        ## Define directories
-        # Evaluation of detections, it might not be used
-        eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
+        # Select one frame per video
+        indices = sel.select_random(dataset,videos,active_set,budget=len(videos))
 
-        # Training of current cycle
-        new_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
+        active_set.extend(indices)
 
-        # Create the training directory to save active set before training starts 
-        if not os.path.exists(new_train_dir):
-            os.mkdir(new_train_dir)
+        # Create the training directory to save active set before training starts
+        if not os.path.exists(train_dir):
+            os.mkdir(train_dir)
 
-        # If an active set exists in current training dir, load it and resume training
-        if os.path.isfile(new_train_dir+ 'active_set.txt'):
-            with open(new_train_dir + 'active_set.txt', 'r') as f:
-                for line in f:
-                    active_set.append(int(line))
+        #Save active_set in train dir
+        with open(train_dir + 'active_set.txt', 'w') as f:
+            for item in active_set:
+                f.write('{}\n'.format(item))
 
-        # Otherwise, select new indices to add on active_set here
-        else:
-            if 'Rnd' not in name and cycle < num_cycles:
-                # We need to evaluate unlabeled frames if method is other than random
-
-                # Prepare candidates: all but labeled samples, their neighbors and unverified frames
-                aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=3)
-                candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-                # In general, we need to evaluate only the candidates
-                evaluation_set = candidate_set
-
-                # For TC approches, we need to get extra detections besides candidates (surrounding frames)
-                if ('TCFP' in name) or ('TCFN' in name):
-                    aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
-                    evaluation_set = aug_candidate_set
-
-                print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
-                print('Frames to be evaluated: {}'.format(len(evaluation_set)))
-
-
-                # We might already have saved detections --> load them
-                if os.path.exists(eval_train_dir + 'detections.dat'):
-                    with open(eval_train_dir + 'detections.dat','rb') as infile:
-                        detected_boxes = pickle.load(infile)
-                        #detected_boxes = pickle.load(infile,encoding='latin1')
-                else:
-
-                    # Set path where candidate set will be saved
-                    data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
-
-                    save_tf_record(data_info,evaluation_set)
-
-                    # Set number of eval images to number of unlabeled samples and point to tfrecord
-                    eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-                    eval_config.num_examples = len(evaluation_set)
-
-                    def get_next_eval_train(config):
-                       return dataset_builder.make_initializable_iterator(
-                            dataset_builder.build(config)).get_next()
-
-                    # Initialize input dict again (necessary?)
-                    create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
-
-                    graph_rewriter_fn = None
-                    if 'graph_rewriter_config' in configs:
-                        graph_rewriter_fn = graph_rewriter_builder.build(
-                            configs['graph_rewriter_config'], is_training=False)
-
-                    # Need to reset graph for evaluation
-                    tf.reset_default_graph()
-
-                    metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
-                      create_eval_train_input_dict_fn,
-                      eval_model_fn,
-                      eval_config,
-                      categories,
-                      train_dir,
-                      eval_train_dir,
-                      graph_hook_fn=graph_rewriter_fn)
-
-                    #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
-                    with open(eval_train_dir + 'detections.dat','wb') as outfile:
-                        pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
-                    print('Done computing detections in training set')
-
-
-                    # Remove tfrecord used for training
-                    if os.path.exists(data_info['output_path']):
-                        os.remove(data_info['output_path'])
-
-
-            # Select the actual indices that will be added to the active set
-            if ('Rnd' in name):
-                indices = sel.select_random(dataset,videos,active_set)
-            else:
-                if ('Ent' in name):
-                    indices = sel.select_entropy(dataset,videos,active_set,detected_boxes)
-                elif ('Lst' in name):
-                    indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
-                elif ('TCFP' in name):
-                    indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes)
-                elif ('FP_gt' in name):
-                    indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-                elif ('FN_gt' in name):
-                    indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-                elif ('FPN' in name):
-                    indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-                elif ('TCFN' in name):
-                    indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
-
-            active_set.extend(indices)
-
-            #Save active_set in train dir 
-            with open(new_train_dir + 'active_set.txt', 'w') as f:
-                for item in active_set:
-                    f.write('{}\n'.format(item))
-
-
-        train_dir = new_train_dir
-
-        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
+        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
         save_tf_record(data_info,active_set)
 
         input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
-
 
         # Set number of steps based on epochs
         train_config.num_steps = epochs*len(active_set)
@@ -346,10 +257,6 @@ if __name__ == "__main__":
         # Reducing learning by /5 at 4, by /5 at 8
         train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.4*epochs*len(active_set))
         train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.8*epochs*len(active_set))
-
-        # Reduce /10 at 5, /10 at 7.5
-        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
-        #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
 
         def get_next(config):
          return dataset_builder.make_initializable_iterator(
@@ -416,9 +323,224 @@ if __name__ == "__main__":
           graph_hook_fn=graph_rewriter_fn)
 
 
-
         # Remove tfrecord used for training
         if os.path.exists(data_info['output_path']):
             os.remove(data_info['output_path'])
+
+
+    else:
+        # All other cycles after 0
+        with open(train_dir + 'active_set.txt', 'r') as f:
+            for line in f:
+               active_set.append(int(line))
+
+        for cycle in range(restart_cycle+1,num_cycles+1):
+
+            #### Evaluation of trained model on unlabeled set to obtain data for selection
+
+            ## Define directories
+            # Evaluation of detections, it might not be used
+            eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
+
+            # Training of current cycle
+            new_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
+
+            # Create the training directory to save active set before training starts
+            if not os.path.exists(new_train_dir):
+                os.mkdir(new_train_dir)
+
+            # If an active set exists in current training dir, load it and resume training
+            if os.path.isfile(new_train_dir+ 'active_set.txt'):
+                with open(new_train_dir + 'active_set.txt', 'r') as f:
+                    for line in f:
+                        active_set.append(int(line))
+
+            # Otherwise, select new indices to add on active_set here
+            else:
+                if 'Rnd' not in name and cycle < num_cycles:
+                    # We need to evaluate unlabeled frames if method is other than random
+
+                    # Prepare candidates: all but labeled samples, their neighbors and unverified frames
+                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=3)
+                    candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+                    # In general, we need to evaluate only the candidates
+                    evaluation_set = candidate_set
+
+                    # For TC approches, we need to get extra detections besides candidates (surrounding frames)
+                    if ('TCFP' in name) or ('TCFN' in name):
+                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
+                        evaluation_set = aug_candidate_set
+
+                    print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
+                    print('Frames to be evaluated: {}'.format(len(evaluation_set)))
+
+
+                    # We might already have saved detections --> load them
+                    if os.path.exists(eval_train_dir + 'detections.dat'):
+                        with open(eval_train_dir + 'detections.dat','rb') as infile:
+                            detected_boxes = pickle.load(infile)
+                            #detected_boxes = pickle.load(infile,encoding='latin1')
+                    else:
+
+                        # Set path where candidate set will be saved
+                        data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
+
+                        save_tf_record(data_info,evaluation_set)
+
+                        # Set number of eval images to number of unlabeled samples and point to tfrecord
+                        eval_input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+                        eval_config.num_examples = len(evaluation_set)
+
+                        def get_next_eval_train(config):
+                           return dataset_builder.make_initializable_iterator(
+                                dataset_builder.build(config)).get_next()
+
+                        # Initialize input dict again (necessary?)
+                        create_eval_train_input_dict_fn = functools.partial(get_next_eval_train, eval_input_config)
+
+                        graph_rewriter_fn = None
+                        if 'graph_rewriter_config' in configs:
+                            graph_rewriter_fn = graph_rewriter_builder.build(
+                                configs['graph_rewriter_config'], is_training=False)
+
+                        # Need to reset graph for evaluation
+                        tf.reset_default_graph()
+
+                        metrics, detected_boxes, groundtruth_boxes = evaluator.evaluate(
+                          create_eval_train_input_dict_fn,
+                          eval_model_fn,
+                          eval_config,
+                          categories,
+                          train_dir,
+                          eval_train_dir,
+                          graph_hook_fn=graph_rewriter_fn)
+
+                        #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
+                        with open(eval_train_dir + 'detections.dat','wb') as outfile:
+                            pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
+                        print('Done computing detections in training set')
+
+
+                        # Remove tfrecord used for training
+                        if os.path.exists(data_info['output_path']):
+                            os.remove(data_info['output_path'])
+
+
+                # Select the actual indices that will be added to the active set
+                if ('Rnd' in name):
+                    indices = sel.select_random(dataset,videos,active_set)
+                else:
+                    if ('Ent' in name):
+                        indices = sel.select_entropy(dataset,videos,active_set,detected_boxes)
+                    elif ('Lst' in name):
+                        indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
+                    elif ('TCFP' in name):
+                        indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes)
+                    elif ('FP_gt' in name):
+                        indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                    elif ('FN_gt' in name):
+                        indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                    elif ('FPN' in name):
+                        indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                    elif ('TCFN' in name):
+                        indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+
+                active_set.extend(indices)
+
+                #Save active_set in train dir
+                with open(new_train_dir + 'active_set.txt', 'w') as f:
+                    for item in active_set:
+                        f.write('{}\n'.format(item))
+
+
+            train_dir = new_train_dir
+
+            data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
+            save_tf_record(data_info,active_set)
+
+            input_config.tf_record_input_reader.input_path[0] = data_info['output_path']
+
+
+            # Set number of steps based on epochs
+            train_config.num_steps = epochs*len(active_set)
+
+            # Reducing learning by /5 at 4, by /5 at 8
+            train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.4*epochs*len(active_set))
+            train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.8*epochs*len(active_set))
+
+            # Reduce /10 at 5, /10 at 7.5
+            #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[0].step= int(0.5*epochs*len(active_set))
+            #train_config.optimizer.momentum_optimizer.learning_rate.manual_step_learning_rate.schedule[1].step= int(0.75*epochs*len(active_set))
+
+            def get_next(config):
+             return dataset_builder.make_initializable_iterator(
+                dataset_builder.build(config)).get_next()
+
+            create_input_dict_fn = functools.partial(get_next, input_config)
+
+            env = json.loads(os.environ.get('TF_CONFIG', '{}'))
+            cluster_data = env.get('cluster', None)
+            cluster = tf.train.ClusterSpec(cluster_data) if cluster_data else None
+            task_data = env.get('task', None) or {'type': 'master', 'index': 0}
+            task_info = type('TaskSpec', (object,), task_data)
+
+            # Parameters for a single worker.
+            ps_tasks = 0
+            worker_replicas = 1
+            worker_job_name = 'lonely_worker'
+            task = 0
+            is_chief = True
+            master = ''
+
+            if cluster_data and 'worker' in cluster_data:
+            # Number of total worker replicas include "worker"s and the "master".
+                worker_replicas = len(cluster_data['worker']) + 1
+            if cluster_data and 'ps' in cluster_data:
+                ps_tasks = len(cluster_data['ps'])
+
+            if worker_replicas > 1 and ps_tasks < 1:
+                raise ValueError('At least 1 ps task is needed for distributed training.')
+
+            if worker_replicas >= 1 and ps_tasks > 0:
+            # Set up distributed training.
+                server = tf.train.Server(tf.train.ClusterSpec(cluster), protocol='grpc',
+                                     job_name=task_info.type,
+                                     task_index=task_info.index)
+                if task_info.type == 'ps':
+                  server.join()
+                  #return
+
+                worker_job_name = '%s/task:%d' % (task_info.type, task_info.index)
+                task = task_info.index
+                is_chief = (task_info.type == 'master')
+                master = server.target
+
+            graph_rewriter_fn = None
+            if 'graph_rewriter_config' in configs:
+                graph_rewriter_fn = graph_rewriter_builder.build(
+                    configs['graph_rewriter_config'], is_training=True)
+
+
+            trainer.train(
+              create_input_dict_fn,
+              model_fn,
+              train_config,
+              master,
+              task,
+              FLAGS.num_clones,
+              worker_replicas,
+              FLAGS.clone_on_cpu,
+              ps_tasks,
+              worker_job_name,
+              is_chief,
+              train_dir,
+              graph_hook_fn=graph_rewriter_fn)
+
+
+
+            # Remove tfrecord used for training
+            if os.path.exists(data_info['output_path']):
+                os.remove(data_info['output_path'])
 
 

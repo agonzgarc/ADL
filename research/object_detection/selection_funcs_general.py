@@ -207,7 +207,7 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
 
 
 
-def select_random(dataset,videos,active_set):
+def select_random(dataset,videos,active_set,budget=3200):
 
     # Random might start with an empty active_set (first cycle)
     if active_set:
@@ -229,7 +229,7 @@ def select_random(dataset,videos,active_set):
             scores_videos.append(np.zeros(len(frames)))
             #num_frames.append(len(frames))
 
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=3200)
+    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
