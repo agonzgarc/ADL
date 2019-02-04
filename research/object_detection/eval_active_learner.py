@@ -132,6 +132,10 @@ if __name__ == "__main__":
     num_steps = str(train_config.num_steps)
 
 
+    # Create subdirectory for dataset if it doesn't exist yet
+    if not os.path.exists(os.path.join(FLAGS.perf_dir,FLAGS.dataset)):
+        os.mkdir(os.path.join(FLAGS.perf_dir,FLAGS.dataset))
+
     output_file = os.path.join(FLAGS.perf_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'c' + str(num_cycles) +'.json')
     #output_file = FLAGS.perf_dir + name + 'R' + str(run_num) + 'c' + str(num_cycles) + '.json'
 

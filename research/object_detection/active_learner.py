@@ -70,6 +70,8 @@ flags.DEFINE_integer('run','1',
                     'Number of current run')
 flags.DEFINE_integer('batch_size','12',
                     'Number of samples in the mini-batch')
+flags.DEFINE_integer('budget','3200',
+                    'Number of samples for each active learning cycle')
 flags.DEFINE_string('dataset', 'imagenet',
                     'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
@@ -201,6 +203,7 @@ if __name__ == "__main__":
     run_num = FLAGS.run
     epochs = FLAGS.epochs
     batch_size = FLAGS.batch_size
+    budget = FLAGS.budget
     restart_cycle = FLAGS.restart_from_cycle
 
     # This is the detection model to be used (Faster R-CNN)
@@ -441,7 +444,7 @@ if __name__ == "__main__":
                     indices = sel.select_random(dataset,videos,active_set)
                 else:
                     if ('Ent' in name):
-                        indices = sel.select_entropy(dataset,videos,active_set,detected_boxes)
+                        indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=budget)
                     elif ('Lst' in name):
                         indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
                     elif ('TCFP' in name):
