@@ -232,7 +232,7 @@ def select_random(dataset,videos,active_set,budget=3200):
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
-def select_least_confident(dataset,videos,active_set,detections):
+def select_least_confident(dataset,videos,active_set,detections,budget=3200):
 
         thresh_detection = 0.5
 
@@ -289,11 +289,11 @@ def select_least_confident(dataset,videos,active_set,detections):
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
         # Javad, call your function here
-        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=3200)
+        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
 
         return indices
 
-def select_entropy(dataset,videos,active_set,detections):
+def select_entropy(dataset,videos,active_set,detections,budget=3200):
 
         thresh_detection = 0.5
 
@@ -339,7 +339,7 @@ def select_entropy(dataset,videos,active_set,detections):
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
-        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=3200)
+        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
         return indices
 
 """
@@ -443,7 +443,7 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
 """
 
 
-def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet'):
+def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet',budget=3200):
 
     # Selector configuration
     threshold_track = 0.7
@@ -679,7 +679,7 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,
     print("All videos processed in: {:.2f} seconds".format(elapsed_time))
 
     # Call selection function
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=3200)
+    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
     return indices
 
 
