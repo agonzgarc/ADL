@@ -392,11 +392,9 @@ def select_FN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cy
 					else:
 						FN[j]=len(gt_boxes[anno_ind])		
 				j+=1               
-			shuffled_vec=[i for i in len(frames)]
-			random.shuffle(shuffled_vec)
-			frames_array=np.asarray(frames)
-			scores_videos.append(FN[shuffled_vec])
-			idx_videos.append(frames_array[shuffled_vec])
+
+			scores_videos.append(FN)
+			idx_videos.append(np.asarray(frames))
 
 		##========================visualization to check FNs================================
 		"""
@@ -499,12 +497,8 @@ def select_FP_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cy
 					else:
 						FP[j]=len(boxes) 		                	
 				j+=1
-
-			shuffled_vec=[i for i in len(frames)]
-			random.shuffle(shuffled_vec)
-			frames_array=np.asarray(frames)
-			scores_videos.append(FP[shuffled_vec])
-			idx_videos.append(frames_array[shuffled_vec])               
+			scores_videos.append(FP)
+			idx_videos.append(np.asarray(frames))               
 
 		##========================visualization to check FPs================================
 		"""
