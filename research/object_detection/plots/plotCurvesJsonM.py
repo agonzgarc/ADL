@@ -9,8 +9,8 @@ save_name = 'Rnd-Lst'
 budget = 3200
 
 json_files = [
-    '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/Rnd-Total.json',
-    '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/Lst-Total.json']
+    '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/imagenet/Rnd-Total.json',
+    '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/imagenet/Lst-Total.json']
 
 labels = ['Random', 'Least Confidence']
 colors = ['b',[1,.4,.7]]
@@ -20,10 +20,10 @@ num_curves = len(json_files)
 
 
 num_cycles = [6,6]
-num_runs = [5,5]
+num_runs = [4,4]
 
 
-first_cycle = 0
+first_cycle = 1
 
 points = np.array(range(np.max(num_cycles)+1))*budget
 

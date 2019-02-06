@@ -441,14 +441,14 @@ if __name__ == "__main__":
 
                 # Select the actual indices that will be added to the active set
                 if ('Rnd' in name):
-                    indices = sel.select_random(dataset,videos,active_set)
+                    indices = sel.select_random(dataset,videos,active_set,budget=budget)
                 else:
                     if ('Ent' in name):
                         indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=budget)
                     elif ('Lst' in name):
-                        indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes)
+                        indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes,budget=budget)
                     elif ('TCFP' in name):
-                        indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'])
+                        indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
                     elif ('FP_gt' in name):
                         indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
                     elif ('FN_gt' in name):
@@ -456,7 +456,7 @@ if __name__ == "__main__":
                     elif ('FPN' in name):
                         indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
                     elif ('TCFN' in name):
-                        indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes)
+                        indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,budget=budget)
 
                 active_set.extend(indices)
 
