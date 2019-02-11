@@ -342,7 +342,7 @@ if __name__ == "__main__":
 
     else:
         # All other cycles after 0
-        with open(train_dir + '/active_set.txt', 'r') as f:
+        with open(train_dir + 'active_set.txt', 'r') as f:
             for line in f:
                active_set.append(int(line))
 
@@ -352,7 +352,7 @@ if __name__ == "__main__":
 
             ## Define directories
             # Evaluation of detections, it might not be used
-            eval_train_dir = train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/'
+            eval_train_dir = os.path.join(train_dir, name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/')
 
             # Training of current cycle
             new_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset, name + 'R' + str(run_num) + 'cycle' +  str(cycle))
