@@ -348,7 +348,6 @@ def select_entropy(dataset,videos,active_set,detections,budget=3200):
         indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
         return indices
 
-<<<<<<< HEAD
 """
 
 def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
@@ -358,9 +357,7 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
         #indices = []
         scores_videos = []
         idx_videos = []
-=======
->>>>>>> 51bc47809a2b0bf00bf56e8b2a243a6f17423763
-
+"""
 
 def select_FN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
 	
