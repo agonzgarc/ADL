@@ -238,7 +238,7 @@ def select_random(dataset,videos,active_set,budget=3200):
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
-def select_least_confident(dataset,videos,active_set,detections,budget=3200):
+def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='avg'):
 
         thresh_detection = 0.5
 
@@ -274,7 +274,12 @@ def select_least_confident(dataset,videos,active_set,detections,budget=3200):
 
                     # Do inverse of least confidence --> selection prioritizes higher scores
                     if len(sel_dets) > 0:
-                        acf = 1-sel_dets.mean()
+                        if measure == 'avg':
+                            acf = 1-sel_dets.mean()
+                        elif measure == 'max':
+                            acf = 1-sel_dets.max()
+                        else:
+                            raise ValueError('Summary measure error')
                     else:
                         acf = 0
                     avg_conf.append(acf)
