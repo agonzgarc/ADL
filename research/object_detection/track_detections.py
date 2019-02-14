@@ -15,14 +15,15 @@ import tensorflow as tf
 
 from object_detection.utils import visualization_utils as vis_utils
 
-train_dir = '/home/abel/DATA/faster_rcnn/resnet101_coco/checkpoints/Tracking_exploration/'
+train_dir = '/home/abel/DATA/faster_rcnn/resnet50_coco/checkpoints/tracking_exploration/'
 data_dir = '/home/abel/DATA/ILSVRC/'
 save_dir = '/home/abel/Documents/graphics/ADL/tracking_evaluation/'
 
 data_info = {'data_dir': data_dir,
           'annotations_dir':'Annotations',
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
+          #'set': 'train_150K_clean'}
+          'set': 'train_short_clean'}
 
 import pdb
 

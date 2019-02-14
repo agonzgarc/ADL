@@ -7,9 +7,10 @@ import json
 import os
 import tensorflow as tf
 import imp
+import pickle
 
 from object_detection import trainer
-from object_detection import evaluator_al as evaluator
+from object_detection import evaluator_local as evaluator
 from object_detection.builders import dataset_builder
 from object_detection.builders import graph_rewriter_builder
 from object_detection.builders import model_builder
@@ -26,8 +27,7 @@ from PIL import Image
 from object_detection.utils import visualization_utils as vis_utils
 
 tf.logging.set_verbosity(tf.logging.INFO)
-tf.logging.set_verbosity(tf.logging.INFO)
-#tf.logging.set_verbosity(tf.logging.WARN)
+tf.logging.set_verbosity(tf.logging.WARN)
 
 flags = tf.app.flags
 flags.DEFINE_string('master', '', 'Name of the TensorFlow master to use.')
@@ -42,25 +42,28 @@ flags.DEFINE_integer('worker_replicas', 1, 'Number of worker+trainer '
 flags.DEFINE_integer('ps_tasks', 0,
                      'Number of parameter server tasks. If None, does not use '
                      'a parameter server.')
-flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/checkpoints/',
+flags.DEFINE_string('train_dir', '/home/abel/DATA/faster_rcnn/resnet50_coco/checkpoints/',
                     'Directory to save the checkpoints and training summaries.')
-flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet101_coco/performances/',
+flags.DEFINE_string('perf_dir', '/home/abel/DATA/faster_rcnn/resnet50_coco/performances/',
                     'Directory to save performance json files.')
 flags.DEFINE_string('data_dir', '/home/abel/DATA/ILSVRC/',
                     'Directory that contains data.')
 flags.DEFINE_string('pipeline_config_path',
-                    '/home/abel/DATA/faster_rcnn/resnet101_coco/configs/faster_rcnn_resnet101_synthia-active_learning.config',
+                    '/home/abel/DATA/faster_rcnn/resnet50_coco/configs/faster_rcnn_resnet50_imagenetvid-active_learning-fR5.config',
                     'Path to a pipeline_pb2.TrainEvalPipelineConfig config '
                     'file. If provided, other configs are ignored')
-flags.DEFINE_string('name', 'Syn-RndxVid',
-#flags.DEFINE_string('name', 'Syn-RndFullTrain',
+flags.DEFINE_string('name', 'RndxVidFrom0',
                     'Name of method to run')
-flags.DEFINE_string('cycles','20',
+flags.DEFINE_integer('cycles','6',
                     'Number of cycles')
-flags.DEFINE_string('restart_from_cycle','0',
-                    'Cycle from which we want to restart training, if any')
-flags.DEFINE_string('run','1',
+flags.DEFINE_integer('start_from_cycle','1',
+                    'Cycle from which we want to start evaluating')
+flags.DEFINE_boolean('during_training','False',
+                    'Indicates whether the evaluation is running during training or not')
+flags.DEFINE_integer('run','1',
                     'Number of current run')
+flags.DEFINE_string('dataset', 'imagenet',
+                    'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -70,23 +73,24 @@ flags.DEFINE_string('model_config_path', '',
 
 FLAGS = flags.FLAGS
 
-
-# This should be a custom name per method once we can overwrite fields in
-# pipeline_file
-data_info = {'data_dir': FLAGS.data_dir,
+if FLAGS.dataset == 'imagenet':
+    data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
+          'dataset': FLAGS.dataset,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'val_fR10'}
-          #'set': 'train_ALL_clean_short'}
-
-# Harcoded keys to retrieve metrics
-keyBike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n03790512'
-keyCar = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02958343'
-keyMotorbike = 'PascalBoxes_PerformanceByCategory/AP@0.5IOU/n02834778'
-keyAll = 'PascalBoxes_Precision/mAP@0.5IOU'
+          'set': 'train_150K_clean'}
+          #'set': 'train_short_clean'}
+elif FLAGS.dataset == 'synthia':
+    data_info = {'data_dir': FLAGS.data_dir,
+          'annotations_dir':'Annotations',
+          'dataset': FLAGS.dataset,
+          'label_map_path': './data/synthia_label_map.pbtxt',
+          'set': 'train'}
+          #'set': 'train_short'}
+else:
+   raise ValueError('Dataset error: select imagenet or synthia')
 
 if __name__ == "__main__":
-
 
     assert FLAGS.train_dir, '`train_dir` is missing.'
     if FLAGS.task == 0: tf.gfile.MakeDirs(FLAGS.train_dir)
@@ -116,19 +120,18 @@ if __name__ == "__main__":
     eval_config = configs['eval_config']
     eval_input_config = configs['eval_input_config']
 
-    # Save number of test frames, as config is modified with unlabeled set
-    num_eval_frames = eval_config.num_examples
-
-    # Also original pointer to tfrecord
-    tfrecord_eval = eval_input_config.tf_record_input_reader.input_path[0]
-
     # Get experiment information from FLAGS
     name = FLAGS.name
-    num_cycles = int(FLAGS.cycles)
-    run_num = int(FLAGS.run)
+    num_cycles = FLAGS.cycles
+    run_num = FLAGS.run
     num_steps = str(train_config.num_steps)
 
-    output_file = FLAGS.perf_dir + name + 'R' + str(run_num) + 'c' + str(num_cycles) + '.json'
+
+    # Create subdirectory for dataset if it doesn't exist yet
+    if not os.path.exists(os.path.join(FLAGS.perf_dir,FLAGS.dataset)):
+        os.mkdir(os.path.join(FLAGS.perf_dir,FLAGS.dataset))
+
+    output_file = os.path.join(FLAGS.perf_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'c' + str(num_cycles) +'.pkl')
 
     # Dictionary to save performance of every run
     performances = {}
@@ -153,10 +156,10 @@ if __name__ == "__main__":
     # Run evaluation once only
     eval_config.max_evals = 1
 
-    cycle = 1
+    cycle = int(FLAGS.start_from_cycle)
 
-    train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '/'
-    future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
+    train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(cycle) +'/')
+    future_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(cycle+1) +'/')
 
     while True:
         #### Evaluation of trained model on test set to record performance
@@ -167,23 +170,20 @@ if __name__ == "__main__":
            return dataset_builder.make_initializable_iterator(
                dataset_builder.build(config)).get_next()
 
-        # Restore eval configuration on test
-        eval_config.num_examples = num_eval_frames
-        eval_input_config.tf_record_input_reader.input_path[0] = tfrecord_eval
-
         # Initialize input dict again (necessary?)
         create_eval_input_dict_fn = functools.partial(get_next_eval, eval_input_config)
-
 
         graph_rewriter_fn = None
         if 'graph_rewriter_config' in configs:
             graph_rewriter_fn = graph_rewriter_builder.build(
                 configs['graph_rewriter_config'], is_training=False)
 
-       # Need to reset graph for evaluation
+        print(eval_dir)
+
+        # Need to reset graph for evaluation
         tf.reset_default_graph()
 
-        metrics,_,_ = evaluator.evaluate(
+        metrics = evaluator.evaluate(
           create_eval_input_dict_fn,
           eval_model_fn,
           eval_config,
@@ -192,48 +192,36 @@ if __name__ == "__main__":
           eval_dir,
           graph_hook_fn=graph_rewriter_fn)
 
-        aps = [metrics[keyAll]]
 
-
-        performances['R'+str(run_num)+'c'+str(cycle)]= aps
+        performances['R'+str(run_num)+'c'+str(cycle)]= metrics
 
         # Write current performance
-        json_str = json.dumps(performances)
-        f = open(output_file,'w')
-        f.write(json_str)
-        f.close()
+        with open(output_file,'wb') as outfile:
+            pickle.dump(performances,outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
+        # Done with previous cycle
+        if os.path.exists(future_train_dir+'checkpoint'):
 
+            if FLAGS.during_training:
+            # When also running during training, we need to run it one last time before moving on
+                tf.reset_default_graph()
+                metrics = evaluator.evaluate(
+                  create_eval_input_dict_fn,
+                  eval_model_fn,
+                  eval_config,
+                  categories,
+                  train_dir,
+                  eval_dir,
+                  graph_hook_fn=graph_rewriter_fn)
 
+                performances['R'+str(run_num)+'c'+str(cycle)]= metrics
 
-        ## Done with previous cycle
-        if os.path.exists(future_train_dir):
-
-            # Make sure we save the very last one, evaluate one last time
-            tf.reset_default_graph()
-
-            metrics,_,_ = evaluator.evaluate(
-              create_eval_input_dict_fn,
-              eval_model_fn,
-              eval_config,
-              categories,
-              train_dir,
-              eval_dir,
-              graph_hook_fn=graph_rewriter_fn)
-
-            #aps = [metrics[keyAll],[metrics[keyBike], metrics[keyCar],metrics[keyMotorbike]]]
-            aps = [metrics[keyAll]]
-
-
-            performances['R'+str(run_num)+'c'+str(cycle)]= aps
-
-            # Write current performance
-            json_str = json.dumps(performances)
-            f = open(output_file,'w')
-            f.write(json_str)
-            f.close()
+                # Write current performance
+                with open(output_file,'wb') as outfile:
+                    pickle.dump(performances,outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
             cycle +=1
             train_dir = future_train_dir
-            future_train_dir = FLAGS.train_dir + name + 'R' + str(run_num) + 'cycle' + str(cycle+1) + '/'
+            future_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'cycle' + str(cycle+1) +'/')
+
 

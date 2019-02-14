@@ -53,7 +53,7 @@ def augment_active_set(dataset,videos,active_set,num_neighbors=5):
     return list(set(aug_active_set))
 
 
-def compute_entropy_with_threshold(predictions, threshold):
+def compute_entropy_with_threshold(predictions, threshold, measure='max'):
     """ Given a list of predictions (class scores with background), it computes
     the entropy of each prediction in the list
     Args:
@@ -82,7 +82,10 @@ def compute_entropy_with_threshold(predictions, threshold):
     # Compute maximum score of each prediction
     max_scores = np.amax(all_sm_no_background,axis=2)
     dets_sm = [all_sm[i][max_scores[i]>threshold] for i in range(len(max_scores))]
-    entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
+    if measure == 'max':
+        entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
+    elif measure == 'avg':
+        entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
 
     return entropies
 
@@ -235,7 +238,7 @@ def select_random(dataset,videos,active_set,budget=3200):
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
-def select_least_confident(dataset,videos,active_set,detections,budget=3200):
+def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='avg'):
 
         thresh_detection = 0.5
 
@@ -271,7 +274,12 @@ def select_least_confident(dataset,videos,active_set,detections,budget=3200):
 
                     # Do inverse of least confidence --> selection prioritizes higher scores
                     if len(sel_dets) > 0:
-                        acf = 1-sel_dets.mean()
+                        if measure == 'avg':
+                            acf = 1-sel_dets.mean()
+                        elif measure == 'max':
+                            acf = 1-sel_dets.max()
+                        else:
+                            raise ValueError('Summary measure error')
                     else:
                         acf = 0
                     avg_conf.append(acf)
@@ -327,7 +335,7 @@ def select_entropy(dataset,videos,active_set,detections,budget=3200):
                 pred_frames = [predictions[unlabeled_set.index(f)] for f in frames]
 
                 # Compute and summarize entropy
-                ent = np.asarray(compute_entropy_with_threshold(pred_frames,thresh_detection))
+                ent = np.asarray(compute_entropy_with_threshold(pred_frames,thresh_detection,measure='avg'))
 
                 # Add scores
                 scores_videos.append(ent)
@@ -345,7 +353,16 @@ def select_entropy(dataset,videos,active_set,detections,budget=3200):
         indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
         return indices
 
+"""
 
+def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
+        #data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
+    score_thresh=0.5
+    iou_thresh=0.5 	    
+        #indices = []
+        scores_videos = []
+        idx_videos = []
+"""
 
 def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle, budget=3200):
 	
