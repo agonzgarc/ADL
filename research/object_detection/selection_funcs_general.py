@@ -264,7 +264,7 @@ def select_random(dataset,videos,active_set,budget=3200):
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
-def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='avg'):
+def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='max'):
 
         thresh_detection = 0.5
 
