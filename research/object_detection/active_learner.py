@@ -390,9 +390,14 @@ if __name__ == "__main__":
 
                     # We might already have saved detections --> load them
                     if os.path.exists(eval_train_dir + 'detections.dat'):
+
                         with open(eval_train_dir + 'detections.dat','rb') as infile:
                             detected_boxes = pickle.load(infile)
                             #detected_boxes = pickle.load(infile,encoding='latin1')
+
+                        with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
+                            groundtruth_boxes = pickle.load(infile2)
+
                     else:
 
                         # Set path where candidate set will be saved
@@ -431,6 +436,10 @@ if __name__ == "__main__":
                         #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
                         with open(eval_train_dir + 'detections.dat','wb') as outfile:
                             pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
+                        with open(eval_train_dir + 'groundtruth.dat','wb') as outfile:
+                            pickle.dump(groundtruth_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
+
                         print('Done computing detections in training set')
 
 
