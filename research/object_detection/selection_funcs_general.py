@@ -53,7 +53,7 @@ def augment_active_set(dataset,videos,active_set,num_neighbors=5):
     return list(set(aug_active_set))
 
 
-def compute_entropy_with_threshold(predictions, threshold, measure='max'):
+def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3):
     """ Given a list of predictions (class scores with background), it computes
     the entropy of each prediction in the list
     Args:
@@ -86,7 +86,9 @@ def compute_entropy_with_threshold(predictions, threshold, measure='max'):
         entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
     elif measure == 'avg':
         entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
-
+    elif measure == 'topk':
+        pdb.set_trace()
+        entropies = [np.mean(list(entropy(d_sm)).sort(reverse=True)[min(len(d_m),top)]) for d_sm in dets_sm]
     return entropies
 
 
@@ -238,7 +240,7 @@ def select_random(dataset,videos,active_set,budget=3200):
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
-def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='max'):
+def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='max',topk=3):
 
         thresh_detection = 0.5
 
@@ -278,6 +280,10 @@ def select_least_confident(dataset,videos,active_set,detections,budget=3200,meas
                             acf = 1-sel_dets.mean()
                         elif measure == 'max':
                             acf = 1-sel_dets.max()
+                        elif measure == 'topk':
+                            sel_dets = list(sel_dets)
+                            sel_dets.sort(reverse=True)
+                            acf = 1 - np.mean(sel_dets[:min(topk,len(sel_dets))])
                         else:
                             raise ValueError('Summary measure error')
                     else:
@@ -299,12 +305,11 @@ def select_least_confident(dataset,videos,active_set,detections,budget=3200,meas
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
-        # Javad, call your function here
         indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
 
         return indices
 
-def select_entropy(dataset,videos,active_set,detections,budget=3200):
+def select_entropy(dataset,videos,active_set,detections,budget=3200,measure='max',topk=3):
 
         thresh_detection = 0.5
 
@@ -335,7 +340,7 @@ def select_entropy(dataset,videos,active_set,detections,budget=3200):
                 pred_frames = [predictions[unlabeled_set.index(f)] for f in frames]
 
                 # Compute and summarize entropy
-                ent = np.asarray(compute_entropy_with_threshold(pred_frames,thresh_detection,measure='avg'))
+                ent = np.asarray(compute_entropy_with_threshold(pred_frames,thresh_detection,measure=measure,topk=topk))
 
                 # Add scores
                 scores_videos.append(ent)
@@ -885,5 +890,6 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,
     # Call selection function
     indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
     return indices
+
 
 

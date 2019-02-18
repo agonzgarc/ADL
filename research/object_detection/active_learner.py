@@ -431,6 +431,8 @@ if __name__ == "__main__":
                         #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
                         with open(eval_train_dir + 'detections.dat','wb') as outfile:
                             pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
+                        with open(eval_train_dir + 'gt.dat','wb') as outfile:
+                            pickle.dump(groundtruth_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
                         print('Done computing detections in training set')
 
 
