@@ -87,8 +87,11 @@ def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3)
     elif measure == 'avg':
         entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
     elif measure == 'topk':
-        pdb.set_trace()
-        entropies = [np.mean(list(entropy(d_sm)).sort(reverse=True)[min(len(d_m),top)]) for d_sm in dets_sm]
+        topk_lists = [entropy(d_sm).tolist() for d_sm in dets_sm]
+        entropies = []
+        for i in topk_lists:
+            i.sort(reverse=True)
+            entropies.append(np.mean(i[min(len(i),topk)]))
     return entropies
 
 
@@ -200,10 +203,10 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
     print('total number of frames containing 0 FP or FN= ', scrores_equal_to_zero)
 
 
-    with open('/data/users/javad/tf/data/ILSVRC/stat_data/frame_statistics'+str(number_of_vids)+'.txt','a') as myfile:
-       myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)) 
-       myfile.write('scrores_equal_to_zero= '+str(scrores_equal_to_zero))
-       myfile.write('======================================') 
+    #with open('/data/users/javad/tf/data/ILSVRC/stat_data/frame_statistics'+str(number_of_vids)+'.txt','a') as myfile:
+       #myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)) 
+       #myfile.write('scrores_equal_to_zero= '+str(scrores_equal_to_zero))
+       #myfile.write('======================================') 
 
     b=0    
     sel_idx=np.zeros(budget,dtype=int)-1
@@ -239,11 +242,11 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
 
 
 
-def select_random(dataset,videos,active_set,budget=3200):
+def select_random(dataset,videos,active_set,budget=3200,neighbors_across=3,neighbors_in=5):
 
     # Random might start with an empty active_set (first cycle)
     if active_set:
-        aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=3)
+        aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
     else:
         aug_active_set = active_set
 
@@ -251,7 +254,6 @@ def select_random(dataset,videos,active_set,budget=3200):
 
     scores_videos = []
     idx_videos = []
-    #num_frames = []
 
     for v in videos:
         print(v)
@@ -262,7 +264,7 @@ def select_random(dataset,videos,active_set,budget=3200):
             scores_videos.append(np.zeros(len(frames)))
             #num_frames.append(len(frames))
 
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
+    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=neighbors_in,budget=budget)
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?

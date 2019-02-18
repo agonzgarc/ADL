@@ -72,6 +72,10 @@ flags.DEFINE_integer('batch_size','12',
                     'Number of samples in the mini-batch')
 flags.DEFINE_integer('budget','3200',
                     'Number of samples for each active learning cycle')
+flags.DEFINE_integer('neighbors_across','3',
+                    'Number of neighbors we remove across cycles')
+flags.DEFINE_integer('neighbors_in','5',
+                    'Number of neighbors we remove inside each cycles')
 flags.DEFINE_string('dataset', 'imagenet',
                     'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
@@ -205,6 +209,8 @@ if __name__ == "__main__":
     batch_size = FLAGS.batch_size
     budget = FLAGS.budget
     restart_cycle = FLAGS.restart_from_cycle
+    neighbors_across = FLAGS.neighbors_across
+    neighbors_in = FLAGS.neighbors_in
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -373,7 +379,7 @@ if __name__ == "__main__":
                     # We need to evaluate unlabeled frames if method is other than random
 
                     # Prepare candidates: all but labeled samples, their neighbors and unverified frames
-                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=3)
+                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
                     candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
                     # In general, we need to evaluate only the candidates
@@ -381,7 +387,7 @@ if __name__ == "__main__":
 
                     # For TC approches, we need to get extra detections besides candidates (surrounding frames)
                     if ('TCFP' in name) or ('TCFN' in name):
-                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
+                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=neighbors_across)
                         evaluation_set = aug_candidate_set
 
                     print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
@@ -439,8 +445,6 @@ if __name__ == "__main__":
 
                         with open(eval_train_dir + 'groundtruth.dat','wb') as outfile:
                             pickle.dump(groundtruth_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
-
->>>>>>> 32f1be64902f3bbaf5bbe3b191b4a24ebd4b1814
                         print('Done computing detections in training set')
 
 
@@ -451,7 +455,7 @@ if __name__ == "__main__":
 
                 # Select the actual indices that will be added to the active set
                 if ('Rnd' in name):
-                    indices = sel.select_random(dataset,videos,active_set,budget=budget)
+                    indices = sel.select_random(dataset,videos,active_set,budget=budget,neighbors_across=neighbors_across,neighbors_in=neighbors_in)
                 else:
                     if ('Ent' in name):
                         indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=budget)
