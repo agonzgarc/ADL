@@ -194,18 +194,44 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
         #print('************************************************')
     
     #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
+    scores_greater_than_zero=np.sum(np.array(CANDIDATES_SC) > 0)
+    scrores_equal_to_zero=np.sum(np.array(CANDIDATES_SC) == 0)
+    print('total number of frames containing at least 1 FP or FN= ', scores_greater_than_zero)
+    print('total number of frames containing 0 FP or FN= ', scrores_equal_to_zero)
+
+
+    with open('/data/users/javad/tf/data/ILSVRC/stat_data/frame_statistics'+str(number_of_vids)+'.txt','a') as myfile:
+       myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)) 
+       myfile.write('scrores_equal_to_zero= '+str(scrores_equal_to_zero))
+       myfile.write('======================================') 
+
     b=0    
     sel_idx=np.zeros(budget,dtype=int)-1
+
+
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             #print('i= ',i, ' j= ',j)
-            if CANDIDATES_SC[i,j]>=0:
+            if CANDIDATES_SC[i,j]>0:   # first pick the frames with scores > 0
                 sel_idx[b]=CANDIDATES[i,j]
                 b=b+1
                 if b==budget:
                    break
         if b==budget:
-           break        
+           break
+
+    if b < budget :   # if there is budget left pick frames with score 0
+      for j in range(0,len(CANDIDATES[0])):    
+        for i in range(0,len(CANDIDATES)):
+            #print('i= ',i, ' j= ',j)
+            if CANDIDATES_SC[i,j]== 0:
+                sel_idx[b]=CANDIDATES[i,j]
+                b=b+1
+                if b==budget:
+                   break
+        if b==budget:
+           break	
+  
     indices=sel_idx[sel_idx>=0]
     #print(indices)
     #print('length of selected frames = ',len(indices))
@@ -390,7 +416,7 @@ def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycl
 	gt_boxes = groundtruth_boxes['boxes']
 
 	stat_data={}
-	list_sum_of_FNs=[]
+	list_of_FNs=[]
 	stat_data['FN_info']=[]
 
 	for v in videos:
@@ -426,8 +452,8 @@ def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycl
 			idx_videos.append(np.asarray(frames))
 
         ##========================statistics ===============================================
-			list_sum_of_FNs.append(sum(FN.tolist()))
-		stat_data['FN_info'].append({'video':v,'frames':len(frames),'scores':list_sum_of_FNs})
+			list_of_FNs.append(FN.tolist())
+		stat_data['FN_info'].append({'video':v,'frames':len(frames),'scores':list_of_FNs})
 	output_file = data_dir+'/stat_data/FN_stat_data_cycle'+str(cycle)+'.json'
 	with open(output_file, 'w') as fn:
 		json.dump(stat_data, fn)
@@ -478,7 +504,7 @@ def selectFpPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycl
 	gt_boxes = groundtruth_boxes['boxes']
 
 	stat_data={}
-	list_sum_of_FPs=[]
+	list_of_FPs=[]
 	stat_data['FP_info']=[]
 
 	for v in videos:
@@ -514,8 +540,8 @@ def selectFpPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycl
 			idx_videos.append(np.asarray(frames))
 
         ##========================statistics ===============================================
-			list_sum_of_FPs.append(sum(FP.tolist()))
-		stat_data['FP_info'].append({'video':v,'frames':len(frames),'scores':list_sum_of_FPs})
+			list_of_FPs.append(FP.tolist())
+		stat_data['FP_info'].append({'video':v,'frames':len(frames),'scores':list_of_FPs})
 	output_file = data_dir+'/stat_data/FP_stat_data_cycle'+str(cycle)+'.json'
 	with open(output_file, 'w') as fp:
 		json.dump(stat_data, fp)
@@ -563,7 +589,7 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
 	gt_boxes = groundtruth_boxes['boxes']
 
 	stat_data={}
-	list_sum_of_FPNs=[]
+	list_of_FPNs=[]
 	stat_data['FPN_info']=[]
 
 	for v in videos:
@@ -618,8 +644,8 @@ def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,c
 			idx_videos.append(np.asarray(frames))
 
         	##========================statistics ===============================================
-			list_sum_of_FPNs.append(sum(FPN.tolist()))
-		stat_data['FPN_info'].append({'video':v,'frames':len(frames),'scores':list_sum_of_FPNs})
+			list_sum_of_FPNs.append(FPN.tolist())
+		stat_data['FPN_info'].append({'video':v,'frames':len(frames),'scores':list_of_FPNs})
 	output_file = data_dir+'/stat_data/FPN_stat_data_cycle'+str(cycle)+'.json'
 	with open(output_file, 'w') as fpn:
 		json.dump(stat_data, fpn)
