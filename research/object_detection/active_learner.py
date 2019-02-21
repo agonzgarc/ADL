@@ -387,7 +387,7 @@ if __name__ == "__main__":
 
                     # For TC approches, we need to get extra detections besides candidates (surrounding frames)
                     if ('TCFP' in name) or ('TCFN' in name):
-                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=neighbors_across)
+                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
                         evaluation_set = aug_candidate_set
 
                     print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
@@ -401,8 +401,9 @@ if __name__ == "__main__":
                             detected_boxes = pickle.load(infile)
                             #detected_boxes = pickle.load(infile,encoding='latin1')
 
-                        with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
-                            groundtruth_boxes = pickle.load(infile2)
+                        # Load this only if needed
+                        #with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
+                            #groundtruth_boxes = pickle.load(infile2)
 
                     else:
 
@@ -461,6 +462,8 @@ if __name__ == "__main__":
                         indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=budget)
                     elif ('Lst' in name):
                         indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes,budget=budget)
+                    elif ('GraphTCFP' in name):
+                        indices = sel.select_GraphTCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
                     elif ('TCFP' in name):
                         indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
                     elif ('FP_gt' in name):
