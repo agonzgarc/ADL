@@ -72,6 +72,10 @@ flags.DEFINE_integer('batch_size','12',
                     'Number of samples in the mini-batch')
 flags.DEFINE_integer('budget','3200',
                     'Number of samples for each active learning cycle')
+flags.DEFINE_integer('neighbors_across','3',
+                    'Number of neighbors we remove across cycles')
+flags.DEFINE_integer('neighbors_in','5',
+                    'Number of neighbors we remove inside each cycles')
 flags.DEFINE_string('dataset', 'imagenet',
                     'Dataset to be used')
 flags.DEFINE_string('train_config_path', '',
@@ -92,14 +96,17 @@ if FLAGS.dataset == 'imagenet':
           'dataset': FLAGS.dataset,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
           'set': 'train_150K_clean'}
-          #'set': 'train_short_clean'}
+          #'set': 'train_150K_clean_short'}
 elif FLAGS.dataset == 'synthia':
     data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'dataset': FLAGS.dataset,
           'label_map_path': './data/synthia_label_map.pbtxt',
           'set': 'train'}
-          #'set': 'train_short'}
+          #'set': 'Cyclist'}
+          #'set':'train_short'}	 
+          #'set': 'bicycle'}
+          #'set': 'pedestrian'}
 else:
    raise ValueError('Dataset error: select imagenet or synthia')
 
@@ -205,6 +212,8 @@ if __name__ == "__main__":
     batch_size = FLAGS.batch_size
     budget = FLAGS.budget
     restart_cycle = FLAGS.restart_from_cycle
+    neighbors_across = FLAGS.neighbors_across
+    neighbors_in = FLAGS.neighbors_in
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -342,17 +351,24 @@ if __name__ == "__main__":
 
     else:
         # All other cycles after 0
-        with open(train_dir + 'active_set.txt', 'r') as f:
+        with open(os.path.join(train_dir , 'active_set.txt'), 'r') as f:
             for line in f:
                active_set.append(int(line))
 
         for cycle in range(restart_cycle+1,num_cycles+1):
 
+
             #### Evaluation of trained model on unlabeled set to obtain data for selection
 
             ## Define directories
             # Evaluation of detections, it might not be used
+            
             eval_train_dir = os.path.join(train_dir, name + 'R' + str(run_num) + 'cycle' +  str(cycle) + 'eval_train/')
+
+            #eval_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset, name + 'R' + str(run_num) + 'cycle' +  str(cycle) + name + 'R' + str(run_num) + 'cycle' +  str(cycle+1) +'eval_train/')
+
+            print('eval_train_dir= ',eval_train_dir)
+            #pdb.set_trace()
 
             # Training of current cycle
             new_train_dir = os.path.join(FLAGS.train_dir,FLAGS.dataset, name + 'R' + str(run_num) + 'cycle' +  str(cycle))
@@ -373,7 +389,7 @@ if __name__ == "__main__":
                     # We need to evaluate unlabeled frames if method is other than random
 
                     # Prepare candidates: all but labeled samples, their neighbors and unverified frames
-                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=3)
+                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
                     candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
                     # In general, we need to evaluate only the candidates
@@ -381,7 +397,7 @@ if __name__ == "__main__":
 
                     # For TC approches, we need to get extra detections besides candidates (surrounding frames)
                     if ('TCFP' in name) or ('TCFN' in name):
-                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
+                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=neighbors_across)
                         evaluation_set = aug_candidate_set
 
                     print('Candidate frames in the dataset: {}'.format(len(candidate_set)))
@@ -389,17 +405,19 @@ if __name__ == "__main__":
 
 
                     # We might already have saved detections --> load them
+                    print('eval_train_dir= ',eval_train_dir)
                     if os.path.exists(eval_train_dir + 'detections.dat'):
 
                         with open(eval_train_dir + 'detections.dat','rb') as infile:
                             detected_boxes = pickle.load(infile)
                             #detected_boxes = pickle.load(infile,encoding='latin1')
 
-                        with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
-                            groundtruth_boxes = pickle.load(infile2)
+                        if ('FP_gt' in name or 'FN_gt' in name or 'FPN' in name):                            
+                            with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
+                                groundtruth_boxes = pickle.load(infile2)
 
                     else:
-
+                        
                         # Set path where candidate set will be saved
                         data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/' + name + 'R' + str(run_num) + 'cycle' +  str(cycle) + '_unlabeled.record'
 
@@ -437,9 +455,9 @@ if __name__ == "__main__":
                         with open(eval_train_dir + 'detections.dat','wb') as outfile:
                             pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
 
-                        with open(eval_train_dir + 'groundtruth.dat','wb') as outfile:
-                            pickle.dump(groundtruth_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
-
+                        if ('FP_gt' in name or 'FN_gt' in name or 'FPN' in name):                            
+                            with open(eval_train_dir + 'groundtruth.dat','wb') as outfile:
+                                pickle.dump(groundtruth_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
                         print('Done computing detections in training set')
 
 
@@ -450,7 +468,7 @@ if __name__ == "__main__":
 
                 # Select the actual indices that will be added to the active set
                 if ('Rnd' in name):
-                    indices = sel.select_random(dataset,videos,active_set,budget=budget)
+                    indices = sel.select_random(dataset,videos,active_set,budget=budget,neighbors_across=neighbors_across,neighbors_in=neighbors_in)
                 else:
                     if ('Ent' in name):
                         indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=budget)
@@ -458,12 +476,8 @@ if __name__ == "__main__":
                         indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes,budget=budget)
                     elif ('TCFP' in name):
                         indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
-                    elif ('FP_gt' in name):
-                        indices = sel.selectFpPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-                    elif ('FN_gt' in name):
-                        indices = sel.selectFnPerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
-                    elif ('FPN' in name):
-                        indices = sel.select_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,cycle)
+                    elif ('FP_gt' in name or 'FN_gt' in name or 'FPN' in name):
+                        indices = sel.select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detected_boxes,groundtruth_boxes,FLAGS.data_dir,name,cycle,run_num)
                     elif ('TCFN' in name):
                         indices = sel.select_TCFN_per_video(dataset,videos,FLAGS.data_dir,active_set,detected_boxes,budget=budget)
 
