@@ -922,7 +922,8 @@ def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,
     return indices
 
 
-def select_GraphTCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet',budget=3200):
+def select_GraphTC(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet',budget=3200,mode='FP'):
+
     # Selector configuration
     threshold_track = 0.7
     num_frames_to_track = 3
@@ -1236,8 +1237,15 @@ def select_GraphTCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detect
                 FN.append(FN_graph[idx_in_graph[0]])
 
             idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
-            scores_videos.append(np.asarray(FP))
 
+            if mode == 'FP':
+                scores_videos.append(np.asarray(FP))
+            elif mode == 'FN':
+                scores_videos.append(np.asarray(FN))
+            elif mode == 'FPFN':
+                scores_videos.append(np.asarray(FP+FN))
+            else:
+                raise ValueError('Mode for GraphTC not recognized')
 
             graph_elapsed_time = time.time() - start_time
             print("Graph built and solved in {:.2f}".format(graph_elapsed_time))
