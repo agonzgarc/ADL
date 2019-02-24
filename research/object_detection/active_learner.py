@@ -78,6 +78,8 @@ flags.DEFINE_integer('neighbors_in','5',
                     'Number of neighbors we remove inside each cycles')
 flags.DEFINE_string('dataset', 'imagenet',
                     'Dataset to be used')
+flags.DEFINE_string('mode_TC', 'FP',
+                    'Mode used for graph TC (FP/FN/FPFN)')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -214,6 +216,9 @@ if __name__ == "__main__":
     restart_cycle = FLAGS.restart_from_cycle
     neighbors_across = FLAGS.neighbors_across
     neighbors_in = FLAGS.neighbors_in
+    mode_TC = FLAGS.mode_TC
+    if 'TC' in name and not mode_TC in name:
+        raise ValueError('mode_TC must be in name')
 
     # This is the detection model to be used (Faster R-CNN)
     model_fn = functools.partial(
@@ -411,10 +416,10 @@ if __name__ == "__main__":
                         with open(eval_train_dir + 'detections.dat','rb') as infile:
                             detected_boxes = pickle.load(infile)
                             #detected_boxes = pickle.load(infile,encoding='latin1')
-
                         if ('FP_gt' in name or 'FN_gt' in name or 'FPN' in name):                            
                             with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
                                 groundtruth_boxes = pickle.load(infile2)
+
 
                     else:
                         
@@ -454,7 +459,6 @@ if __name__ == "__main__":
                         #visualize_detections(dataset, unlabeled_set, detected_boxes, groundtruth_boxes)
                         with open(eval_train_dir + 'detections.dat','wb') as outfile:
                             pickle.dump(detected_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
-
                         if ('FP_gt' in name or 'FN_gt' in name or 'FPN' in name):                            
                             with open(eval_train_dir + 'groundtruth.dat','wb') as outfile:
                                 pickle.dump(groundtruth_boxes,outfile, protocol=pickle.HIGHEST_PROTOCOL)
@@ -474,6 +478,8 @@ if __name__ == "__main__":
                         indices = sel.select_entropy(dataset,videos,active_set,detected_boxes,budget=budget)
                     elif ('Lst' in name):
                         indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes,budget=budget)
+                    elif ('GraphTC' in name):
+                        indices = sel.select_GraphTC(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget,mode=mode_TC)
                     elif ('TCFP' in name):
                         indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
                     elif ('FP_gt' in name or 'FN_gt' in name or 'FPN' in name):
