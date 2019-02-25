@@ -8,6 +8,7 @@ import os
 import tensorflow as tf
 import imp
 import time
+import pickle
 import maxflow
 from itertools import compress
 
@@ -129,7 +130,17 @@ def normalize_box(box,w,h):
 
 ##################################################### End of auxiliary functions
 
-def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=3200):
+def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,num_neighbors=5,budget=3200):
+
+    if not os.path.exists(data_dir +'/frames_and_scores'):
+         os.mkdir(data_dir +'/frames_and_scores')
+
+    with open(data_dir +'/frames_and_scores/scores_videos_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_scores:
+         pickle.dump(scores_videos,outfile_scores, protocol=pickle.HIGHEST_PROTOCOL)
+
+    with open(data_dir +'/frames_and_scores/idx_videos_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_videos_idx:
+         pickle.dump(idx_videos,outfile_videos_idx, protocol=pickle.HIGHEST_PROTOCOL)
+
 
     number_of_vids=len(idx_videos)
     vid_length=[len(v) for v in idx_videos]
@@ -148,7 +159,6 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
       random.shuffle(shuffled_vec)
       SCORES[v,:]=np.pad(scores[shuffled_vec], (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
       IDX[v,:]=np.pad(idx[shuffled_vec], (0,max_vid_length-len(idx)), 'constant', constant_values=-1)
-    #print('--------------------------------------------------------------------------------')
 
     #--------------------------SORTING THE SCORES IN DESCENDING ORDER-----------------------
     sorted_SCORES=np.flip(np.sort(SCORES,axis=1),1)
@@ -156,7 +166,6 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
     sorted_INDICES=np.zeros((number_of_vids,max_vid_length),dtype=int)
     for i in range(number_of_vids):
     	sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
-    #print('--------------------------------------------------------------------------------')
 
 
     for v in range(0,number_of_vids):
@@ -165,55 +174,34 @@ def top_score_frames_selector(scores_videos,idx_videos,num_neighbors=5,budget=32
       sorted_scores=sorted_SCORES[v,:]
       idx_max=sorted_indices[0]
       score_max=sorted_scores[0]
-      while(score_max>=0):
-        #print('score_max= ',score_max)
-        #print('idx_max= ',idx_max)
-        #print('video= ',v)      
-        #print('iter= ',iter)
-        #print('sorted_indices= ',sorted_indices)
-        #print('sorted_scores= ',sorted_scores)
-        #print('idx_max= ',idx_max)
-        #print('score_max= ',score_max)    
+      while(score_max>=0):  
         CANDIDATES[v,iter]=idx_max
         CANDIDATES_SC[v,iter]=score_max
         left=max(idx_max-num_neighbors,0)
         right=min(idx_max+num_neighbors,max(sorted_indices))
         frames_to_remove=np.arange(left,right+1,1)
-        #print('frames_to_remove= ',frames_to_remove)    
-        #print('frames to remove= ', frames_to_remove)
         IND = np.in1d(sorted_indices, frames_to_remove) #intersection
         shrinked_indices=sorted_indices[~IND] # removing frames from indices
         shrinked_scores=sorted_scores[~IND] # removing frames from scores    
-        #print('shrinked_indices= ',shrinked_indices)
-        #print('shrinked_scores= ',shrinked_scores)
         sorted_scores=shrinked_scores
         sorted_indices=shrinked_indices
-        #print('size of sorted indices= ',sorted_indices.size)
         if sorted_indices.size != 0:
            idx_max=sorted_indices[0]
            score_max=sorted_scores[0]
         else:
-           #print('************************************************')
            break
         iter=iter+1    
-        #print('************************************************')
     
     #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
     scores_greater_than_zero=np.sum(np.array(CANDIDATES_SC) > 0)
     scrores_equal_to_zero=np.sum(np.array(CANDIDATES_SC) == 0)
-    print('total number of frames containing at least 1 FP or FN= ', scores_greater_than_zero)
-    print('total number of frames containing 0 FP or FN= ', scrores_equal_to_zero)
-
-
-    #with open('/data/users/javad/tf/data/ILSVRC/stat_data/frame_statistics'+str(number_of_vids)+'.txt','a') as myfile:
-       #myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)) 
-       #myfile.write('scrores_equal_to_zero= '+str(scrores_equal_to_zero))
-       #myfile.write('======================================') 
+    with open(data_dir +'/frames_and_scores/frame_statistics_'+name+'run_'+str(run)+'_cycle_'+str(cycle)+'.txt','a') as myfile:
+       myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)+'\n') 
+       myfile.write('scrores_equal_to_zero= '+str(scrores_equal_to_zero)+'\n')
+       myfile.write('=================================================='+'\n') 
 
     b=0    
     sel_idx=np.zeros(budget,dtype=int)-1
-
-
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             #print('i= ',i, ' j= ',j)
@@ -388,22 +376,10 @@ def select_entropy(dataset,videos,active_set,detections,budget=3200,measure='max
         indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
         return indices
 
-"""
 
-def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle):
-        #data_dir='/datatmp/Experiments/Javad/tf/data/ILSVRC'
-    score_thresh=0.5
-    iou_thresh=0.5 	    
-        #indices = []
-        scores_videos = []
-        idx_videos = []
-"""
 
-def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle, budget=3200):
+def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,data_dir,name,cycle,run,budget=3200):
 	
-	data_dir='/data/users/javad/tf/data/ILSVRC' #imagenet
-	#data_dir='/data/datasets/synthia' #synthia
-
 	score_thresh=0.5
 	iou_thresh=0.75 	    
 	scores_videos = []
@@ -417,268 +393,72 @@ def selectFnPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycl
 
 	BOXES = detections['boxes'] 
 	SCORES= detections['scores']
+	LABELS = detections['labels']
 	gt_boxes = groundtruth_boxes['boxes']
+	gt_labels = groundtruth_boxes['labels']
+	
 
 	stat_data={}
 	list_of_FNs=[]
-	stat_data['FN_info']=[]
-
-	for v in videos:
-		# Select frames in current video
-		frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
-		# If all frames of video are in active set, ignore video
-		if len(frames)>0:
-			FN = np.zeros((len(frames)))
-			j=0
-			for f in frames:
-				anno_ind=unlabeled_set.index(f)
-				# Extracting boxes with score greater than threshold
-				ind=SCORES[anno_ind] > score_thresh
-				boxes=np.array(BOXES[anno_ind])[ind,:]		                
-				# FN selection part                      
-				if gt_boxes[anno_ind].any():	           		    
-					if boxes.any():
-						# Compute IOU between gt and detected bbox 
-						iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-						ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						iter=0
-						while(iou_mat[ind]>=iou_thresh):
-							iou_mat[ind[0],:]=-1
-							iou_mat[:,ind[1]]=-1
-							iter=iter+1
-							ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						FN[j]=len(iou_mat)-iter
-					else:
-						FN[j]=len(gt_boxes[anno_ind])		
-				j+=1               
-
-			scores_videos.append(FN)
-			idx_videos.append(np.asarray(frames))
-
-        ##========================statistics ===============================================
-			list_of_FNs.append(FN.tolist())
-		stat_data['FN_info'].append({'video':v,'frames':len(frames),'scores':list_of_FNs})
-	output_file = data_dir+'/stat_data/FN_stat_data_cycle'+str(cycle)+'.json'
-	with open(output_file, 'w') as fn:
-		json.dump(stat_data, fn)
-
-		##========================visualization to check FNs================================
-		"""
-		for f in frames:
-			for d in dataset:
-				if d['idx']==f and d['video']==v:
-					IndInDs=dataset.index(d)
-					anno_ind=unlabeled_set.index(f)                                          
-					video_dir = os.path.join(data_dir,'Data','VID','train',v) #imagenet
-					#video_dir = os.path.join(data_dir,'train',v,'RGB') # synthia						
-					curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
-					im_w,im_h = curr_im.size
-					vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
-					ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-					boxes=np.array(BOXES[anno_ind])[ind,:]
-					vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
-					draw = ImageDraw.Draw(curr_im)
-					curr_im.show()
-					curr_im.save(data_dir+'/FN_samples'+'/FN_'+str(int(FN[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
-		pdb.set_trace()
-		"""
-		##====================================================================================
-
-	indices=top_score_frames_selector(scores_videos, idx_videos, num_neighbors=5, budget=budget)
-	return indices
-
-
-def selectFpPerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle, budget=3200):
-	
-	#data_dir='/data/datasets/synthia' #synthia
-	data_dir='/data/users/javad/tf/data/ILSVRC' #imagenet
-	score_thresh=0.5
-	iou_thresh=0.75 	    
-	scores_videos = []
-	idx_videos = []
-
-	aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=3)
-	unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-        # We have detections only for the labeled dataset, be careful with indexing
-        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
-
-	BOXES = detections['boxes'] 
-	SCORES= detections['scores']
-	gt_boxes = groundtruth_boxes['boxes']
-
-	stat_data={}
 	list_of_FPs=[]
+	stat_data['FN_info']=[]
 	stat_data['FP_info']=[]
 
-	for v in videos:
+	for v in videos: 
+
 		# Select frames in current video
 		frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
 		# If all frames of video are in active set, ignore video
 		if len(frames)>0:
-			FP = np.zeros((len(frames)))
-			j=0
-			for f in frames:
-				anno_ind=unlabeled_set.index(f)
-				# Extracting boxes with score greater than threshold
-				ind=SCORES[anno_ind] > score_thresh
-				boxes=np.array(BOXES[anno_ind])[ind,:]
-				# FP selection part            
-				if boxes.any(): # if the frame has detections with high score
-					if gt_boxes[anno_ind].any():
-						# Compute IOU between gt and detected bbox 
-						iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-						# Check if there are multiple detections for single groundtruth box
-						ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						iter=0
-						while(iou_mat[ind]>=iou_thresh):
-							iou_mat[ind[0],:]=-1
-							iou_mat[:,ind[1]]=-1
-							iter=iter+1
-							ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						FP[j]=len(iou_mat[0])-iter
-					else:
-						FP[j]=len(boxes)		                	
-				j=j+1
-			scores_videos.append(FP)
-			idx_videos.append(np.asarray(frames))
-
-        ##========================statistics ===============================================
-			list_of_FPs.append(FP.tolist())
-		stat_data['FP_info'].append({'video':v,'frames':len(frames),'scores':list_of_FPs})
-	output_file = data_dir+'/stat_data/FP_stat_data_cycle'+str(cycle)+'.json'
-	with open(output_file, 'w') as fp:
-		json.dump(stat_data, fp)
-	##========================visualization to check FPs================================
-		"""
-		for f in frames:
-			for d in dataset:
-				if d['idx']==f and d['video']==v:
-					IndInDs=dataset.index(d)
-					anno_ind=unlabeled_set.index(f)
-					video_dir = os.path.join(data_dir,'Data','VID','train',v)# imagenet                                          
-					#video_dir = os.path.join(data_dir,'train',v,'RGB') # synthia
-					curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
-					im_w,im_h = curr_im.size
-					vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
-					ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-					boxes=np.array(BOXES[anno_ind])[ind,:]
-					vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
-					draw = ImageDraw.Draw(curr_im)
-					curr_im.show()
-					curr_im.save(data_dir+'/FP_samples'+'/FP_'+str(int(FP[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
-		pdb.set_trace()
-		"""		
-		##==================================================================================
-	indices=top_score_frames_selector(scores_videos, idx_videos, num_neighbors=5, budget=budget)
-	return indices
-
-def select_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,cycle, budget=3200):
-	
-	#data_dir='/data/datasets/synthia' #synthia
-	data_dir='/data/users/javad/tf/data/ILSVRC' #imagenet
-	score_thresh=0.5
-	iou_thresh=0.75 	    
-	scores_videos = []
-	idx_videos = []
-
-	aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=3)
-	unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-        # We have detections only for the labeled dataset, be careful with indexing
-        #unlabeled_set = [i for i in range(len(dataset)) if i not in active_set]
-
-	BOXES = detections['boxes'] 
-	SCORES= detections['scores']
-	gt_boxes = groundtruth_boxes['boxes']
-
-	stat_data={}
-	list_of_FPNs=[]
-	stat_data['FPN_info']=[]
-
-	for v in videos:
-		# Select frames in current video
-		frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
-		# If all frames of video are in active set, ignore video
-		if len(frames)>0:
-			FP = np.zeros((len(frames)))
 			FN = np.zeros((len(frames)))
+			FP = np.zeros((len(frames)))
+			TP = np.zeros((len(frames)))
 			j=0
 			for f in frames:
 				anno_ind=unlabeled_set.index(f)
 				# Extracting boxes with score greater than threshold
 				ind=SCORES[anno_ind] > score_thresh
 				boxes=np.array(BOXES[anno_ind])[ind,:]
+				labels=LABELS[anno_ind][ind]
+				gt_labels_frame_f=np.copy(gt_labels[anno_ind])
+				gt_boxes_frame_f=np.copy(gt_boxes[anno_ind])
 
-				# FP selection part            
-				if boxes.any(): # if the frame has detections with high score
-					if gt_boxes[anno_ind].any():
-						# Compute IOU between gt and detected bbox 
-						iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-						# Check if there are multiple detections for single groundtruth box
-						ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						iter=0
-						while(iou_mat[ind]>=iou_thresh):
-							iou_mat[ind[0],:]=-1
-							iou_mat[:,ind[1]]=-1
-							iter=iter+1
-							ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						FP[j]=len(iou_mat[0])-iter
+				if gt_boxes_frame_f.any():	           		    
+					if boxes.any():						
+						for it in range(0,len(boxes)):							
+							box=boxes[[it]] # maximum score box
+							iou_vec=np_box_ops.iou(gt_boxes_frame_f, box)
+							idx_max=np.argmax(iou_vec)
+							if iou_vec[idx_max]>=iou_thresh:
+								if labels[it]==gt_labels_frame_f[idx_max]: # box label matches gt label ?
+									gt_boxes_frame_f[idx_max,:]=-1
+									gt_labels_frame_f[idx_max]=-1
+									TP[j]+=1
+								else : 
+									FP[j]+=1
+							else:
+								FP[j]+=1
+
+						FN[j]=sum(gt_labels_frame_f>-1)
+		
 					else:
-						FP[j]=len(boxes)
-		                
-				# FN selection part                      
-				if gt_boxes[anno_ind].any():	           		    
-					if boxes.any():
-						# Compute IOU between gt and detected bbox 
-						iou_mat= np_box_ops.iou(gt_boxes[anno_ind], boxes)
-						ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						iter=0
-						while(iou_mat[ind]>=iou_thresh):
-							iou_mat[ind[0],:]=-1
-							iou_mat[:,ind[1]]=-1
-							iter=iter+1
-							ind = np.unravel_index(np.argmax(iou_mat, axis=None), iou_mat.shape)
-						FN[j]=len(iou_mat)-iter
-					else:
-						FN[j]=len(gt_boxes[anno_ind])			
+						FN[j]=len(gt_boxes_frame_f)					
+				else:
+					FP[j]=len(boxes)					                
 				j+=1               
-			FPN=FP+FN
-			scores_videos.append(FPN)
-			idx_videos.append(np.asarray(frames))
 
-        	##========================statistics ===============================================
-			list_sum_of_FPNs.append(FPN.tolist())
-		stat_data['FPN_info'].append({'video':v,'frames':len(frames),'scores':list_of_FPNs})
-	output_file = data_dir+'/stat_data/FPN_stat_data_cycle'+str(cycle)+'.json'
-	with open(output_file, 'w') as fpn:
-		json.dump(stat_data, fpn)
+			if 'FP_gt' in name:
+				scores_videos.append(FP)
+				idx_videos.append(np.asarray(frames))
+			elif 'FN_gt' in name: 
+				scores_videos.append(FN)
+				idx_videos.append(np.asarray(frames))			
+			elif'FPN' in name: 
+				scores_videos.append(FP+FN)
+				idx_videos.append(np.asarray(frames))	
 
-
-		##========================visualization to check FPNs================================
-		"""
-		for f in frames:
-			for d in dataset:
-				if d['idx']==f and d['video']==v:
-					IndInDs=dataset.index(d)
-					anno_ind=unlabeled_set.index(f)                                          
-					#video_dir = os.path.join(data_dir,'Data','VID','train',v) #imagenet
-					video_dir = os.path.join(data_dir,'train',v,'RGB') # synthia
-					curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
-					im_w,im_h = curr_im.size
-					vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind],im_w,im_h),color='green')
-					ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
-					boxes=np.array(BOXES[anno_ind])[ind,:]
-					vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes,im_w,im_h))
-					draw = ImageDraw.Draw(curr_im)
-					curr_im.show()
-					curr_im.save(data_dir+'/FPN_samples'+'/FPN_'+str(int(FPN[frames.index(f)]))+'_'+dataset[IndInDs]['filename'])
-		pdb.set_trace()
-		"""
-		##====================================================================================
-	indices=top_score_frames_selector(scores_videos, idx_videos, num_neighbors=5, budget=budget)
+	indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=5, budget=budget)
 	return indices
-
 
 
 
