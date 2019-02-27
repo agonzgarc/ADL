@@ -862,12 +862,8 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
                 # No detections in video --> still add frame
                 idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
-                scores_FP_videos.append(np.zeros(len(frames_candidate)))
-                scores_FN_videos.append(np.zeros(len(frames_candidate)))
+                scores_videos.append(np.zeros(len(frames_candidate)))
 
-                disagreements.append(0)
-                indices_tc.append(-1)
-                indices_gt.append(-1)
             else:
 
                 # Track ALL frames and all detections in video with one call
