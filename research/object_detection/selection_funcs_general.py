@@ -90,11 +90,14 @@ def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3)
     elif measure == 'avg':
         entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
     elif measure == 'topk':
-        topk_lists = [entropy(d_sm).tolist() for d_sm in dets_sm]
+        topk_lists = [entropy(d_sm).tolist() if len(d_sm) > 0 else []  for d_sm in dets_sm]
         entropies = []
         for i in topk_lists:
-            i.sort(reverse=True)
-            entropies.append(np.mean(i[min(len(i),topk)]))
+            if len(i)>0:
+                i.sort(reverse=True)
+                entropies.append(np.mean(i[min(len(i)-1,topk)]))
+            else:
+                entropies.append(-1)
     return entropies
 
 
@@ -130,7 +133,7 @@ def normalize_box(box,w,h):
 
 ##################################################### End of auxiliary functions
 
-def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,num_neighbors=5,budget=3200):
+def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,num_neighbors=5,budget=3200,thresh_video=0):
 
     if not os.path.exists(data_dir +'/frames_and_scores'):
          os.mkdir(data_dir +'/frames_and_scores')
@@ -166,7 +169,6 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
     sorted_INDICES=np.zeros((number_of_vids,max_vid_length),dtype=int)
     for i in range(number_of_vids):
     	sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
-
 
     for v in range(0,number_of_vids):
       iter=0
@@ -205,7 +207,7 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             #print('i= ',i, ' j= ',j)
-            if CANDIDATES_SC[i,j]>0:   # first pick the frames with scores > 0
+            if CANDIDATES_SC[i,j]>thresh_video:   # first pick the frames with scores > 0
                 sel_idx[b]=CANDIDATES[i,j]
                 b=b+1
                 if b==budget:
@@ -217,7 +219,7 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
       for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             #print('i= ',i, ' j= ',j)
-            if CANDIDATES_SC[i,j]== 0:
+            if CANDIDATES_SC[i,j] == thresh_video:
                 sel_idx[b]=CANDIDATES[i,j]
                 b=b+1
                 if b==budget:
@@ -232,7 +234,7 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
 
 
 
-def select_random(dataset,videos,active_set,budget=3200,neighbors_across=3,neighbors_in=5):
+def select_random(dataset,videos,active_set,data_dir='', name='emptyName', cycle=1, run=1,budget=3200,neighbors_across=3,neighbors_in=5):
 
     # Random might start with an empty active_set (first cycle)
     if active_set:
@@ -254,16 +256,16 @@ def select_random(dataset,videos,active_set,budget=3200,neighbors_across=3,neigh
             scores_videos.append(np.zeros(len(frames)))
             #num_frames.append(len(frames))
 
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=neighbors_in,budget=budget)
+    indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
-def select_least_confident(dataset,videos,active_set,detections,budget=3200,measure='max',topk=3):
+def select_least_confident(dataset,videos,active_set, detections, data_dir='', name='emptyName', cycle=1, run=1, budget=3200, neighbors_across=3, neighbors_in=5,measure='max',topk=3):
 
         thresh_detection = 0.5
 
         # We have detections only for the unlabeled dataset, be careful with indexing
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=3)
+        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         predictions = detections['scores']
@@ -322,17 +324,16 @@ def select_least_confident(dataset,videos,active_set,detections,budget=3200,meas
 
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
-
-        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
 
         return indices
 
-def select_entropy(dataset,videos,active_set,detections,budget=3200,measure='max',topk=3):
+def select_entropy(dataset,videos,active_set,detections,data_dir='', name='emptyName', cycle=1, run=1,budget=3200, neighbors_across=3, neighbors_in=5,measure='max',topk=3):
 
         thresh_detection = 0.5
 
         # We have detections only for the labeled dataset, be careful with indexing
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=3)
+        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         predictions = detections['scores_with_background']
@@ -373,7 +374,7 @@ def select_entropy(dataset,videos,active_set,detections,budget=3200,measure='max
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
-        indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
         return indices
 
 
@@ -462,247 +463,250 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 
 
 
-def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet',budget=3200):
+#def select_TCFP(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet',budget=3200):
 
-    # Selector configuration
-    threshold_track = 0.7
-    num_frames_to_track = 3
+    ## Selector configuration
+    #threshold_track = 0.7
+    #num_frames_to_track = 3
 
-    # Tracker configuration
-    hp, evaluation, run, env, design = parse_arguments()
-    final_score_sz = hp.response_up * (design.score_sz - 1) + 1
+    ## Tracker configuration
+    #hp, evaluation, run, env, design = parse_arguments()
+    #final_score_sz = hp.response_up * (design.score_sz - 1) + 1
 
-    total_frames = len(candidate_set)
-    overall_frame_counter = 0
+    #total_frames = len(candidate_set)
+    #overall_frame_counter = 0
 
-    detected_boxes = detections['boxes']
-    detected_scores = detections['scores']
-    detected_labels = detections['labels']
+    #detected_boxes = detections['boxes']
+    #detected_scores = detections['scores']
+    #detected_labels = detections['labels']
 
-    indices = []
-    elapsed_time = []
-
-
-    scores_videos = []
-    idx_videos = []
-    #num_frames = []
-
-    t_start = time.time()
+    #indices = []
+    #elapsed_time = []
 
 
-    # Get only top detections
-    for i in range(len(detected_boxes)):
-        detected_boxes[i],detected_scores[i],detected_labels[i] = filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
+    #scores_videos = []
+    #idx_videos = []
+    ##num_frames = []
 
-    #gt_boxes = groundtruths['boxes']
-    for v in videos:
-
-        if dataset_name == 'imagenet':
-            video_dir = os.path.join(data_dir,'Data','VID','train',v)
-        elif dataset_name == 'synthia':
-            video_dir = os.path.join(data_dir,'train',v,'RGB')
-        else:
-            raise ValueError('Dataset error: select imagenet or synthia')
-
-        # Select frames in current video (even those with wrong GTs)
-        frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
-
-        # Get maximium index of frames in video
-        idx_all_frames_video = [f[0] for f in frames]
-        max_frame = np.max(idx_all_frames_video)
-
-        # Get frames in video that are in the candidate set 
-        frames_candidate = [f for f in frames if f[0] in candidate_set and f[2]]
+    #t_start = time.time()
 
 
-        if len(frames_candidate) > 0:
+    ## Get only top detections
+    #for i in range(len(detected_boxes)):
+        #detected_boxes[i],detected_scores[i],detected_labels[i] = filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
 
-            frame_counter = 0
+    ##gt_boxes = groundtruths['boxes']
+    #for v in videos:
 
-            frame_list_video = []
-            pos_x_video = []
-            pos_y_video = []
-            target_w_video = []
-            target_h_video = []
+        #if dataset_name == 'imagenet':
+            #video_dir = os.path.join(data_dir,'Data','VID','train',v)
+        #elif dataset_name == 'synthia':
+            #video_dir = os.path.join(data_dir,'train',v,'RGB')
+        #else:
+            #raise ValueError('Dataset error: select imagenet or synthia')
 
-            num_good_dets_video = []
+        ## Select frames in current video (even those with wrong GTs)
+        #frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
 
-            detections_neighbors_video = []
+        ## Get maximium index of frames in video
+        #idx_all_frames_video = [f[0] for f in frames]
+        #max_frame = np.max(idx_all_frames_video)
 
-            for fu in frames_candidate:
-
-                idx_frame_video = idx_all_frames_video.index(fu[0])
-
-                frame_counter += 1
-                overall_frame_counter += 1
-
-                print("Adding information about frame in video: {}/{}, overall: {}/{}".format(frame_counter,len(frames_candidate),overall_frame_counter, total_frames))
-
-                # Map frame in the evaluation set to obtain detections
-                idx_evaluated_frames = evaluation_set.index(fu[0])
-
-                # Get boxes for current frame
-                boxes_frame = detected_boxes[idx_evaluated_frames]
-                scores_frame = detected_scores[idx_evaluated_frames]
-                labels_frame = detected_labels[idx_evaluated_frames]
-
-                #gt_frame = gt_boxes[fu[0]]
-
-                # Visualization of frame's GT and detections
-                #curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
-                #im_w,im_h = curr_im.size
-                ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_frame,im_w,im_h))
-                #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes_frame[:50,:],im_w,im_h),color='green')
-                #curr_im.show()
+        ## Get frames in video that are in the candidate set 
+        #frames_candidate = [f for f in frames if f[0] in candidate_set and f[2]]
 
 
-                num_good_dets = labels_frame.shape[0]
+        #if len(frames_candidate) > 0:
 
-                num_good_dets_video.append(num_good_dets)
+            #frame_counter = 0
 
-                for idx_det in range(num_good_dets):
+            #frame_list_video = []
+            #pos_x_video = []
+            #pos_y_video = []
+            #target_w_video = []
+            #target_h_video = []
 
-                    ###### Common part for forward and backward tracking
-                    # Convert [y x y x] to [y x w h]
-                    curr_box = convert_boxes_wh(boxes_frame[idx_det])
-                    pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
+            #num_good_dets_video = []
 
-                    # Append them twice, forward and backward
-                    pos_x_video.append(pos_x)
-                    pos_y_video.append(pos_y)
-                    target_w_video.append(target_w)
-                    target_h_video.append(target_h)
+            #detections_neighbors_video = []
 
-                    ###### Forward part
-                    detections_neighbors_f = []
-                    frame_list_f = [os.path.join(video_dir,frames[idx_frame_video][1])]
+            #num_good_dets_video = []
 
-                    for t in range(1,num_frames_to_track+1):
-                        idx_neighbor = idx_frame_video+t
+            #for fu in frames_candidate:
 
-                        # Check if neighbor still in video
-                        if idx_neighbor < len(frames):
-                            frame_list_f.append(os.path.join(video_dir,frames[idx_neighbor][1]))
-                            # Take only those of the current class
-                            detections_neighbors_f.append(detected_boxes[evaluation_set.index(fu[0]+t)][detected_labels[evaluation_set.index(fu[0]+t)] == labels_frame[idx_det]])
+                #idx_frame_video = idx_all_frames_video.index(fu[0])
 
-                    ###### Backward part
-                    detections_neighbors_b = []
-                    frame_list_b = [os.path.join(video_dir,frames[idx_frame_video][1])]
+                #frame_counter += 1
+                #overall_frame_counter += 1
 
-                    for t in range(1,num_frames_to_track+1):
-                        idx_neighbor = idx_frame_video-t
-                        if idx_neighbor >= 0:
-                            frame_list_b.append(os.path.join(video_dir,frames[idx_neighbor][1]))
-                            # Take only those of the current class
-                            detections_neighbors_b.append(detected_boxes[evaluation_set.index(fu[0]-t)][detected_labels[evaluation_set.index(fu[0]-t)] == labels_frame[idx_det]])
+                #print("Adding information about frame in video: {}/{}, overall: {}/{}".format(frame_counter,len(frames_candidate),overall_frame_counter, total_frames))
 
-                    # Save frames and detections in lists
-                    frame_list_video.append([frame_list_f,frame_list_b])
-                    detections_neighbors_video.append([detections_neighbors_f,detections_neighbors_b])
+                ## Map frame in the evaluation set to obtain detections
+                #idx_evaluated_frames = evaluation_set.index(fu[0])
+
+                ## Get boxes for current frame
+                #boxes_frame = detected_boxes[idx_evaluated_frames]
+                #scores_frame = detected_scores[idx_evaluated_frames]
+                #labels_frame = detected_labels[idx_evaluated_frames]
+
+                ##gt_frame = gt_boxes[fu[0]]
+
+                ## Visualization of frame's GT and detections
+                ##curr_im = Image.open(os.path.join(video_dir,frames[idx_frame_video][1]))
+                ##im_w,im_h = curr_im.size
+                ###vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_frame,im_w,im_h))
+                ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes_frame[:50,:],im_w,im_h),color='green')
+                ##curr_im.show()
 
 
+                #num_good_dets = labels_frame.shape[0]
 
-            # Track ALL frames and all detections in video with one call
-            bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video, pos_y_video, target_w_video, target_h_video, final_score_sz, env)
+                #num_good_dets_video.append(num_good_dets)
 
-            elapsed_time.append(elapsed_time_video)
+                #for idx_det in range(num_good_dets):
 
-            # Computation of TC-FP score
-            frame_counter = 0
+                    ####### Common part for forward and backward tracking
+                    ## Convert [y x y x] to [y x w h]
+                    #curr_box = convert_boxes_wh(boxes_frame[idx_det])
+                    #pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
 
-            tc_scores = np.zeros(len(frames_candidate))
+                    ## Append them twice, forward and backward
+                    #pos_x_video.append(pos_x)
+                    #pos_y_video.append(pos_y)
+                    #target_w_video.append(target_w)
+                    #target_h_video.append(target_h)
 
-            for fu in frames_candidate:
+                    ####### Forward part
+                    #detections_neighbors_f = []
+                    #frame_list_f = [os.path.join(video_dir,frames[idx_frame_video][1])]
 
-                num_good_dets = num_good_dets_video[frame_counter]
+                    #for t in range(1,num_frames_to_track+1):
+                        #idx_neighbor = idx_frame_video+t
 
-                tc_sum_frame = np.zeros(num_good_dets)
-                tc_neigh_frame = np.zeros(num_good_dets)
+                        ## Check if neighbor still in video
+                        #if idx_neighbor < len(frames):
+                            #frame_list_f.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                            ## Take only those of the current class
+                            #detections_neighbors_f.append(detected_boxes[evaluation_set.index(fu[0]+t)][detected_labels[evaluation_set.index(fu[0]+t)] == labels_frame[idx_det]])
 
-                for idx_det in range(num_good_dets):
+                    ####### Backward part
+                    #detections_neighbors_b = []
+                    #frame_list_b = [os.path.join(video_dir,frames[idx_frame_video][1])]
 
-                    # Return and delete from list first element, going in the same order as before
-                    bboxes = bboxes_video.pop(0)
-                    detections_neighbors = detections_neighbors_video.pop(0)
-                    frame_list = frame_list_video.pop(0)
+                    #for t in range(1,num_frames_to_track+1):
+                        #idx_neighbor = idx_frame_video-t
+                        #if idx_neighbor >= 0:
+                            #frame_list_b.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                            ## Take only those of the current class
+                            #detections_neighbors_b.append(detected_boxes[evaluation_set.index(fu[0]-t)][detected_labels[evaluation_set.index(fu[0]-t)] == labels_frame[idx_det]])
 
-                    # First position contains forward
-                    bboxes_f = bboxes[0]
-                    frame_list_f = frame_list[0]
-                    detections_neighbors_f = detections_neighbors[0]
-
-                    for t in range(1,len(frame_list_f)):
-
-                        # Visualize track and detections
-                        #curr_im = Image.open(frame_list_f[t])
-                        #im_w,im_h = curr_im.size
-                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes_f[t]).reshape((1,4)),im_w,im_h))
-                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors_f[t-1],im_w,im_h),color='green')
-                        #curr_im.show()
-
-                        tc_neigh_frame[idx_det] += 1
-
-                        # Check if tracked detection matches any detection in neighbor frame, if any
-                        if len(detections_neighbors_f[t-1]) > 0:
-                            ovTr = np_box_ops.iou(convert_boxes_xy(bboxes_f[t]).reshape((1,4)),detections_neighbors_f[t-1])
-                            # Increment score if it does
-                            if np.max(ovTr) > threshold_track:
-                                tc_sum_frame[idx_det] += 1
+                    ## Save frames and detections in lists
+                    #frame_list_video.append([frame_list_f,frame_list_b])
+                    #detections_neighbors_video.append([detections_neighbors_f,detections_neighbors_b])
 
 
-                    # Second position contains backward
-                    bboxes_b = bboxes[1]
-                    frame_list_b = frame_list[1]
-                    detections_neighbors_b = detections_neighbors[1]
 
+            ## Track ALL frames and all detections in video with one call
+            #bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video, pos_y_video, target_w_video, target_h_video, final_score_sz, env)
 
-                    for t in range(1,len(frame_list_b)):
+            #elapsed_time.append(elapsed_time_video)
+
+            ## Computation of TC-FP score
+            #frame_counter = 0
+
+            #tc_scores = np.zeros(len(frames_candidate))
+
+            #for fu in frames_candidate:
+
+                #num_good_dets = num_good_dets_video[frame_counter]
+
+                #tc_sum_frame = np.zeros(num_good_dets)
+                #tc_neigh_frame = np.zeros(num_good_dets)
+
+                #for idx_det in range(num_good_dets):
+
+                    ## Return and delete from list first element, going in the same order as before
+                    #bboxes = bboxes_video.pop(0)
+                    #detections_neighbors = detections_neighbors_video.pop(0)
+                    #frame_list = frame_list_video.pop(0)
+
+                    ## First position contains forward
+                    #bboxes_f = bboxes[0]
+                    #frame_list_f = frame_list[0]
+                    #detections_neighbors_f = detections_neighbors[0]
+
+                    #for t in range(1,len(frame_list_f)):
 
                         ## Visualize track and detections
-                        #curr_im = Image.open(frame_list_b[t])
-                        #im_w,im_h = curr_im.size
-                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes_b[t]).reshape((1,4)),im_w,im_h))
-                        #vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors_b[t-1],im_w,im_h),color='green')
-                        #curr_im.show()
+                        ##curr_im = Image.open(frame_list_f[t])
+                        ##im_w,im_h = curr_im.size
+                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes_f[t]).reshape((1,4)),im_w,im_h))
+                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors_f[t-1],im_w,im_h),color='green')
+                        ##curr_im.show()
+
+                        #tc_neigh_frame[idx_det] += 1
+
+                        ## Check if tracked detection matches any detection in neighbor frame, if any
+                        #if len(detections_neighbors_f[t-1]) > 0:
+                            #ovTr = np_box_ops.iou(convert_boxes_xy(bboxes_f[t]).reshape((1,4)),detections_neighbors_f[t-1])
+                            ## Increment score if it does
+                            #if np.max(ovTr) > threshold_track:
+                                #tc_sum_frame[idx_det] += 1
 
 
-                        tc_neigh_frame[idx_det] += 1
-
-                        # Check if tracked detection matches any detection in neighbor frame, if any
-                        if len(detections_neighbors_b[t-1]) > 0:
-                            ovTr = np_box_ops.iou(convert_boxes_xy(bboxes_b[t]).reshape((1,4)),detections_neighbors_b[t-1])
-                            # Increment score if it does
-                            if np.max(ovTr) > threshold_track:
-                                tc_sum_frame[idx_det] += 1
+                    ## Second position contains backward
+                    #bboxes_b = bboxes[1]
+                    #frame_list_b = frame_list[1]
+                    #detections_neighbors_b = detections_neighbors[1]
 
 
-                # Compute and save mean score per frame
-                if num_good_dets > 0:
-                    # Score is normalized count
-                    tc_scores[frame_counter] = 1 - np.mean(tc_sum_frame/tc_neigh_frame)
-                else:
-                    # Frames with no detections don't have TCFP score (inf so they aren't taken)
-                    tc_scores[frame_counter] = -1
+                    #for t in range(1,len(frame_list_b)):
 
-                frame_counter += 1
-
-
-            scores_videos.append(tc_scores)
-            idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
-            #num_frames.append(len(frames_candidate))
-
-            print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
-
-    elapsed_time = time.time() - t_start
-    print("All videos processed in: {:.2f} seconds".format(elapsed_time))
-
-    # Call selection function
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
-    return indices
+                        ### Visualize track and detections
+                        ##curr_im = Image.open(frame_list_b[t])
+                        ##im_w,im_h = curr_im.size
+                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes_b[t]).reshape((1,4)),im_w,im_h))
+                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors_b[t-1],im_w,im_h),color='green')
+                        ##curr_im.show()
 
 
-def select_GraphTC(dataset,videos,data_dir,candidate_set,evaluation_set,detections,dataset_name='imagenet',budget=3200,mode='FP'):
+                        #tc_neigh_frame[idx_det] += 1
+
+                        ## Check if tracked detection matches any detection in neighbor frame, if any
+                        #if len(detections_neighbors_b[t-1]) > 0:
+                            #ovTr = np_box_ops.iou(convert_boxes_xy(bboxes_b[t]).reshape((1,4)),detections_neighbors_b[t-1])
+                            ## Increment score if it does
+                            #if np.max(ovTr) > threshold_track:
+                                #tc_sum_frame[idx_det] += 1
+
+
+                ## Compute and save mean score per frame
+                #if num_good_dets > 0:
+                    ## Score is normalized count
+                    #tc_scores[frame_counter] = 1 - np.mean(tc_sum_frame/tc_neigh_frame)
+                #else:
+                    ## Frames with no detections don't have TCFP score (inf so they aren't taken)
+                    #tc_scores[frame_counter] = -1
+
+                #frame_counter += 1
+
+
+            #scores_videos.append(tc_scores)
+            #idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
+            ##num_frames.append(len(frames_candidate))
+
+            #print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
+
+    #elapsed_time = time.time() - t_start
+    #print("All videos processed in: {:.2f} seconds".format(elapsed_time))
+
+    ## Call selection function
+    #indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
+    #return indices
+
+
+def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,dataset_name='imagenet', data_dir='.', name='emptyName', cycle=1, run=1, neighbors_across=3,
+                   neighbors_in=5,budget=3200,mode='FP'):
 
     # Selector configuration
     threshold_track = 0.7
@@ -712,7 +716,7 @@ def select_GraphTC(dataset,videos,data_dir,candidate_set,evaluation_set,detectio
     hp, evaluation, run, env, design = parse_arguments()
     final_score_sz = hp.response_up * (design.score_sz - 1) + 1
 
-    total_frames = len(candidate_set)
+    total_frames = len(evaluation_set)
     overall_frame_counter = 0
 
     detected_boxes = detections['boxes']
@@ -755,7 +759,6 @@ def select_GraphTC(dataset,videos,data_dir,candidate_set,evaluation_set,detectio
         frames_graph = [f for f in frames if f[0] in evaluation_set]
         frames_candidate = [f for f in frames if f[0] in candidate_set and f[2]]
 
-
         if len(frames_candidate) > 0:
 
             frame_counter = 0
@@ -781,7 +784,7 @@ def select_GraphTC(dataset,videos,data_dir,candidate_set,evaluation_set,detectio
                 idx_frame_video = idx_all_frames_video.index(fu[0])
 
 
-                print("Adding information about frame in video: {}/{}, overall: {}/{}".format(frame_counter+1,len(frames_candidate),overall_frame_counter, total_frames))
+                print("Adding information about frame in video: {}/{}, overall: {}/{}".format(frame_counter+1,len(frames_graph),overall_frame_counter, total_frames))
 
                 # Map frame in the evaluation set to obtain detections
                 idx_evaluated_frames = evaluation_set.index(fu[0])
@@ -855,186 +858,198 @@ def select_GraphTC(dataset,videos,data_dir,candidate_set,evaluation_set,detectio
                 frame_counter += 1
                 overall_frame_counter += 1
 
-            # Track ALL frames and all detections in video with one call
-            bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video, pos_y_video, target_w_video, target_h_video, final_score_sz, env)
+            if np.max(num_good_dets_video)==0:
 
-            elapsed_time.append(elapsed_time_video)
+                # No detections in video --> still add frame
+                idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
+                scores_FP_videos.append(np.zeros(len(frames_candidate)))
+                scores_FN_videos.append(np.zeros(len(frames_candidate)))
 
-            print("Video tracking processed in {:.2f}".format(elapsed_time_video))
-            print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
-
-            start_time = time.time()
-
-            # Accumulate detections and tracks in frames
-            tracked_dets = [[] for i in range(len(frames_graph))]
-
-            frame_counter = 0
-
-            for idx in range(len(frames_graph)):
-                fu = frames_graph[idx]
-
-                for idx_det in range(len(local_dets[idx])):
-                    bboxes = bboxes_video.pop(0)
-                    frame_list = frame_list_video.pop(0)
-
-                    # First position contains forward
-                    bboxes_f = bboxes[0]
-                    frame_list_f = frame_list[0]
-
-                    for t in range(1,len(frame_list_f)):
-                        if idx+t < len(tracked_dets):
-                            tracked_dets[idx+t].append({'idx_frame':idx, 'idx_det':idx_det,'box':convert_boxes_xy(bboxes_f[t]).reshape((1,4))})
-
-                    bboxes_b = bboxes[1]
-                    frame_list_b = frame_list[1]
-                    for t in range(1,len(frame_list_b)):
-                        tracked_dets[idx-t].append({'idx_frame':idx, 'idx_det':idx_det,'box':convert_boxes_xy(bboxes_b[t]).reshape((1,4))})
-
-            remaining_tracks = []
-
-            total_dets = np.sum([len(det) for det in local_dets])
-
-            # We need to keep them in two separate arrays because of different types
-            det_info = np.zeros((total_dets,3),dtype=int)
-            det_all_boxes = np.zeros((total_dets,4))
-            det_counter = 0
-
-            # Now associate detections from different frames 
-            for idx in range(len(frames_graph)):
-                det_boxes = []
-                for i, det in enumerate(local_dets[idx]):
-                    det_boxes.append(det['box'])
-
-                    # Save information of detection 
-                    det_info[det_counter,0] = idx
-                    det_info[det_counter,1] = i
-                    det_all_boxes[det_counter,:] = det['box']
-                    det_counter +=1
-                    det['assoc']=[]
-
-                tracked_boxes = []
-                for track in tracked_dets[idx]:
-                    tracked_boxes.append(track['box'])
-
-                tracked_boxes = np.asarray(tracked_boxes).reshape(len(tracked_boxes),4)
-                det_boxes = np.asarray(det_boxes).reshape(len(det_boxes),4)
-
-                ovTr = np_box_ops.iou(tracked_boxes,det_boxes)
-
-                # Save what tracks are not going to match any detection
-                if len(det_boxes)>0:
-                    remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
-                                          'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i,x in enumerate(np.max(ovTr,axis=1) < 0.5) if x])
-                else:
-                    # Add all tracks as remaining if there is no detection
-                    remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
-                                          'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i in range(len(tracked_dets[idx]))])
-
-                for idx_det in range(len(local_dets[idx])):
-                    idx_assoc = ovTr[:,idx_det] > 0.5
-                    matching_dets = list(compress(tracked_dets[idx],idx_assoc))
-                    for md in matching_dets:
-                        local_dets[idx][idx_det]['assoc'].append({'idx_frame':md['idx_frame'],'idx_det':md['idx_det']})
-
-
-
-            total_tracks = len(remaining_tracks)
-            node_info = np.concatenate((det_info,np.zeros((total_tracks,3), det_info.dtype)),axis=0)
-            node_boxes = np.concatenate((det_all_boxes,np.zeros((total_tracks,4), det_info.dtype)),axis=0)
-            total_nodes = total_dets+total_tracks
-
-            adj_matrix = np.zeros((total_nodes,total_nodes),dtype=int)
-
-            print('Adding edges between detections')
-            # Create edges for det-det
-            for i in range(total_dets):
-                idx_frame = node_info[i,0]
-                idx_det = node_info[i,1]
-                for assoc_det in local_dets[idx_frame][idx_det]['assoc']:
-                    # Find associated detection in node_info (use det_info)
-                    idx_assoc = [i for i,c in enumerate(det_info) if c[0]==assoc_det['idx_frame'] and c[1] == assoc_det['idx_det']]
-                    # Set both connections to 1
-                    adj_matrix[i,idx_assoc] = 1
-                    adj_matrix[idx_assoc,i] = 1
-
-            print('Adding edges between dets and remaining tracks')
-            # Create edges between det and tracks 
-            track_counter = 0
-            for i in range(total_dets,total_nodes):
-                # Fill in node info for track
-                node_info[i,0]=remaining_tracks[track_counter]['idx_track_frame']
-                node_info[i,1]=remaining_tracks[track_counter]['idx_track']
-                node_info[i,2]=1
-                node_boxes[i,:] = remaining_tracks[track_counter]['box']
-
-                # Add edge with corresponding track (checking in det_info only)
-                idx_orig_det = [j for j,c in enumerate(det_info) if c[0]==remaining_tracks[track_counter]['idx_det_frame'] and c[1] ==remaining_tracks[track_counter]['idx_det']]
-                adj_matrix[i,idx_orig_det] = 1
-                adj_matrix[idx_orig_det,i] = 1
-
-
-                track_counter +=1
-
-            # MISSING EDGES BETWEEN TRACKS
-
-            # Create graph for maxflow 
-            g = maxflow.Graph[int]()
-
-            # Add nodes
-            nodes = g.add_nodes(total_nodes)
-
-            for i in range(total_nodes):
-
-                # Add terminal edge
-                g.add_tedge(nodes[i],node_info[i,2], 1 if node_info[i,2]==0 else 0)
-
-                #And add edges between non-terminal nodes
-                edge_list = [i for i,c in enumerate(adj_matrix[i,:]) if c==1]
-                for e in edge_list:
-                    g.add_edge(nodes[i],nodes[e],1,1)
-
-            flow = g.maxflow()
-
-            assigned_labels = []
-            FP_graph = np.zeros(len(frames_graph),dtype=int)
-            FN_graph = np.zeros(len(frames_graph),dtype=int)
-            for i in range(total_nodes):
-                assigned_labels.append(g.get_segment(nodes[i]))
-                #Detection
-                if node_info[i,2] == 0 and assigned_labels[-1] == 0:
-                    FP_graph[node_info[i,0]] += 1
-                #Track
-                if node_info[i,2] == 1 and assigned_labels[-1] == 1:
-                    FN_graph[node_info[i,0]] += 1
-
-            FP = []
-            FN = []
-
-            # Count number of FP and FN per frame
-            for f in frames_candidate:
-                idx_in_graph = [i for i,c in enumerate(frames_graph) if c[0] == f[0]]
-                FP.append(FP_graph[idx_in_graph[0]])
-                FN.append(FN_graph[idx_in_graph[0]])
-
-            idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
-
-            if mode == 'FP':
-                scores_videos.append(np.asarray(FP))
-            elif mode == 'FN':
-                scores_videos.append(np.asarray(FN))
-            elif mode == 'FPFN':
-                scores_videos.append(np.asarray(FP+FN))
+                disagreements.append(0)
+                indices_tc.append(-1)
+                indices_gt.append(-1)
             else:
-                raise ValueError('Mode for GraphTC not recognized')
 
-            graph_elapsed_time = time.time() - start_time
-            print("Graph built and solved in {:.2f}".format(graph_elapsed_time))
+                # Track ALL frames and all detections in video with one call
+                bboxes_video, elapsed_time_video = tracker_full_video(hp, run, design, frame_list_video, pos_x_video, pos_y_video, target_w_video, target_h_video, final_score_sz, env)
+
+                elapsed_time.append(elapsed_time_video)
+
+                print("Video tracking processed in {:.2f}".format(elapsed_time_video))
+                print("Current average elapsed time per video: {:.2f}".format(np.mean(elapsed_time)))
+
+                start_time = time.time()
+
+                # Accumulate detections and tracks in frames
+                tracked_dets = [[] for i in range(len(frames_graph))]
+
+                frame_counter = 0
+
+                for idx in range(len(frames_graph)):
+                    fu = frames_graph[idx]
+
+                    for idx_det in range(len(local_dets[idx])):
+                        bboxes = bboxes_video.pop(0)
+                        frame_list = frame_list_video.pop(0)
+
+                        # First position contains forward
+                        bboxes_f = bboxes[0]
+                        frame_list_f = frame_list[0]
+
+                        for t in range(1,len(frame_list_f)):
+                            if idx+t < len(tracked_dets):
+                                tracked_dets[idx+t].append({'idx_frame':idx, 'idx_det':idx_det,'box':convert_boxes_xy(bboxes_f[t]).reshape((1,4))})
+
+                        bboxes_b = bboxes[1]
+                        frame_list_b = frame_list[1]
+                        for t in range(1,len(frame_list_b)):
+                            tracked_dets[idx-t].append({'idx_frame':idx, 'idx_det':idx_det,'box':convert_boxes_xy(bboxes_b[t]).reshape((1,4))})
+
+                remaining_tracks = []
+
+                total_dets = np.sum([len(det) for det in local_dets])
+
+                # We need to keep them in two separate arrays because of different types
+                det_info = np.zeros((total_dets,3),dtype=int)
+                det_all_boxes = np.zeros((total_dets,4))
+                det_counter = 0
+
+                # Now associate detections from different frames 
+                for idx in range(len(frames_graph)):
+                    det_boxes = []
+                    for i, det in enumerate(local_dets[idx]):
+                        det_boxes.append(det['box'])
+
+                        # Save information of detection 
+                        det_info[det_counter,0] = idx
+                        det_info[det_counter,1] = i
+                        det_all_boxes[det_counter,:] = det['box']
+                        det_counter +=1
+                        det['assoc']=[]
+
+                    tracked_boxes = []
+                    for track in tracked_dets[idx]:
+                        tracked_boxes.append(track['box'])
+
+                    tracked_boxes = np.asarray(tracked_boxes).reshape(len(tracked_boxes),4)
+                    det_boxes = np.asarray(det_boxes).reshape(len(det_boxes),4)
+
+                    ovTr = np_box_ops.iou(tracked_boxes,det_boxes)
+
+                    # Save what tracks are not going to match any detection
+                    if len(det_boxes)>0:
+                        remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
+                                              'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i,x in enumerate(np.max(ovTr,axis=1) < 0.5) if x])
+                    else:
+                        # Add all tracks as remaining if there is no detection
+                        remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
+                                              'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i in range(len(tracked_dets[idx]))])
+
+                    for idx_det in range(len(local_dets[idx])):
+                        idx_assoc = ovTr[:,idx_det] > 0.5
+                        matching_dets = list(compress(tracked_dets[idx],idx_assoc))
+                        for md in matching_dets:
+                            local_dets[idx][idx_det]['assoc'].append({'idx_frame':md['idx_frame'],'idx_det':md['idx_det']})
+
+
+
+                total_tracks = len(remaining_tracks)
+                node_info = np.concatenate((det_info,np.zeros((total_tracks,3), det_info.dtype)),axis=0)
+                node_boxes = np.concatenate((det_all_boxes,np.zeros((total_tracks,4), det_info.dtype)),axis=0)
+                total_nodes = total_dets+total_tracks
+
+                adj_matrix = np.zeros((total_nodes,total_nodes),dtype=int)
+
+                print('Adding edges between detections')
+                # Create edges for det-det
+                for i in range(total_dets):
+                    idx_frame = node_info[i,0]
+                    idx_det = node_info[i,1]
+                    for assoc_det in local_dets[idx_frame][idx_det]['assoc']:
+                        # Find associated detection in node_info (use det_info)
+                        idx_assoc = [i for i,c in enumerate(det_info) if c[0]==assoc_det['idx_frame'] and c[1] == assoc_det['idx_det']]
+                        # Set both connections to 1
+                        adj_matrix[i,idx_assoc] = 1
+                        adj_matrix[idx_assoc,i] = 1
+
+                print('Adding edges between dets and remaining tracks')
+                # Create edges between det and tracks 
+                track_counter = 0
+                for i in range(total_dets,total_nodes):
+                    # Fill in node info for track
+                    node_info[i,0]=remaining_tracks[track_counter]['idx_track_frame']
+                    node_info[i,1]=remaining_tracks[track_counter]['idx_track']
+                    node_info[i,2]=1
+                    node_boxes[i,:] = remaining_tracks[track_counter]['box']
+
+                    # Add edge with corresponding track (checking in det_info only)
+                    idx_orig_det = [j for j,c in enumerate(det_info) if c[0]==remaining_tracks[track_counter]['idx_det_frame'] and c[1] ==remaining_tracks[track_counter]['idx_det']]
+                    adj_matrix[i,idx_orig_det] = 1
+                    adj_matrix[idx_orig_det,i] = 1
+
+
+                    track_counter +=1
+
+                # MISSING EDGES BETWEEN TRACKS
+
+                # Create graph for maxflow 
+                g = maxflow.Graph[int]()
+
+                # Add nodes
+                nodes = g.add_nodes(total_nodes)
+
+                for i in range(total_nodes):
+
+                    # Add terminal edge
+                    g.add_tedge(nodes[i],node_info[i,2], 1 if node_info[i,2]==0 else 0)
+
+                    #And add edges between non-terminal nodes
+                    edge_list = [i for i,c in enumerate(adj_matrix[i,:]) if c==1]
+                    for e in edge_list:
+                        g.add_edge(nodes[i],nodes[e],1,1)
+
+                flow = g.maxflow()
+
+                assigned_labels = []
+                FP_graph = np.zeros(len(frames_graph),dtype=int)
+                FN_graph = np.zeros(len(frames_graph),dtype=int)
+                for i in range(total_nodes):
+                    assigned_labels.append(g.get_segment(nodes[i]))
+                    #Detection
+                    if node_info[i,2] == 0 and assigned_labels[-1] == 0:
+                        FP_graph[node_info[i,0]] += 1
+                    #Track
+                    if node_info[i,2] == 1 and assigned_labels[-1] == 1:
+                        FN_graph[node_info[i,0]] += 1
+
+                FP = []
+                FN = []
+
+                # Count number of FP and FN per frame
+                for f in frames_candidate:
+                    idx_in_graph = [i for i,c in enumerate(frames_graph) if c[0] == f[0]]
+                    FP.append(FP_graph[idx_in_graph[0]])
+                    FN.append(FN_graph[idx_in_graph[0]])
+
+                idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
+
+                if mode == 'FP':
+                    scores_videos.append(np.asarray(FP))
+                elif mode == 'FN':
+                    scores_videos.append(np.asarray(FN))
+                elif mode == 'FPFN':
+                    scores_videos.append(np.asarray(FP+FN))
+                else:
+                    raise ValueError('Mode for GraphTC not recognized')
+
+                graph_elapsed_time = time.time() - start_time
+                print("Graph built and solved in {:.2f}".format(graph_elapsed_time))
 
     elapsed_time = time.time() - t_start
     print("All videos processed in: {:.2f} seconds".format(elapsed_time))
 
     # Call selection function
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=5,budget=budget)
+    indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
     return indices
 
 
