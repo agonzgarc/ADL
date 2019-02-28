@@ -216,7 +216,7 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
            break
 
     if b < budget :   # if there is budget left pick frames with score 0
-      for j in range(0,len(CANDIDATES[0])):    
+      for j in range(0,len(CANDIDATES[0])):
         for i in range(0,len(CANDIDATES)):
             #print('i= ',i, ' j= ',j)
             if CANDIDATES_SC[i,j] == thresh_video:
@@ -1045,7 +1045,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
     print("All videos processed in: {:.2f} seconds".format(elapsed_time))
 
     # Call selection function
-    indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
+    indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1)
     return indices
 
 
