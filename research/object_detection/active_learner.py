@@ -354,7 +354,7 @@ if __name__ == "__main__":
 
     else:
         # All other cycles after 0
-        with open(train_dir + 'active_set.txt', 'r') as f:
+        with open(os.path.join(train_dir,'active_set.txt'), 'r') as f:
             for line in f:
                active_set.append(int(line))
 

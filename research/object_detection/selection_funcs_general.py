@@ -1034,7 +1034,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 elif mode == 'FN':
                     scores_videos.append(np.asarray(FN))
                 elif mode == 'FPFN':
-                    scores_videos.append(np.asarray(FP+FN))
+                    scores_videos.append(np.asarray(FP)+np.asarray(FN))
                 else:
                     raise ValueError('Mode for GraphTC not recognized')
 

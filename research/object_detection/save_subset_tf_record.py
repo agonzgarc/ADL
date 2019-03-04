@@ -381,7 +381,7 @@ def save_tf_record(data_info,indices):
           if idx in indices:
               image_path = example
 
-              annotation_path = os.path.join(example[:-15],'labels_kitti',example[-10:-4]+ '.txt')
+              annotation_path = os.path.join(example[:-15],'modified_labels_kitti',example[-10:-4]+ '.txt')
 
               img_anno = read_annotation_file(annotation_path)
 
