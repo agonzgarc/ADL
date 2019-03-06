@@ -366,7 +366,7 @@ def save_tf_record(data_info,indices):
 
     elif data_info['dataset'] == 'synthia':
 
-        classes_to_use = ['car','pedestrian','bicycle','cyclist','truck']
+        classes_to_use = ['car','pedestrian','cyclist']
 
         logging.info('Reading from Synthia dataset.')
         examples_path = os.path.join(data_dir,'AL', data_info['set'] + '.txt')

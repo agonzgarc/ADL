@@ -108,7 +108,7 @@ def convert_kitti_to_tfrecords(data_dir, output_path, classes_to_use,
                                              output_path)
   val_writer = tf.python_io.TFRecordWriter('%s_val.tfrecord'%
                                            output_path)
-
+  print(image_dir)
   images = sorted(tf.gfile.ListDirectory(image_dir))
   for img_name in images:
     img_num = int(img_name.split('.')[0])
@@ -186,20 +186,20 @@ def prepare_example(image_path, annotations, label_map_dict):
           annotations['truncated']),
       'image/object/alpha': dataset_util.float_list_feature(
           annotations['alpha']),
-      'image/object/3d_bbox/height': dataset_util.float_list_feature(
-          annotations['3d_bbox_height']),
-      'image/object/3d_bbox/width': dataset_util.float_list_feature(
-          annotations['3d_bbox_width']),
-      'image/object/3d_bbox/length': dataset_util.float_list_feature(
-          annotations['3d_bbox_length']),
-      'image/object/3d_bbox/x': dataset_util.float_list_feature(
-          annotations['3d_bbox_x']),
-      'image/object/3d_bbox/y': dataset_util.float_list_feature(
-          annotations['3d_bbox_y']),
-      'image/object/3d_bbox/z': dataset_util.float_list_feature(
-          annotations['3d_bbox_z']),
-      'image/object/3d_bbox/rot_y': dataset_util.float_list_feature(
-          annotations['3d_bbox_rot_y']),
+      #'image/object/3d_bbox/height': dataset_util.float_list_feature(
+          #annotations['3d_bbox_height']),
+      #'image/object/3d_bbox/width': dataset_util.float_list_feature(
+          #annotations['3d_bbox_width']),
+      #'image/object/3d_bbox/length': dataset_util.float_list_feature(
+          #annotations['3d_bbox_length']),
+      #'image/object/3d_bbox/x': dataset_util.float_list_feature(
+          #annotations['3d_bbox_x']),
+      #'image/object/3d_bbox/y': dataset_util.float_list_feature(
+          #annotations['3d_bbox_y']),
+      #'image/object/3d_bbox/z': dataset_util.float_list_feature(
+          #annotations['3d_bbox_z']),
+      #'image/object/3d_bbox/rot_y': dataset_util.float_list_feature(
+          #annotations['3d_bbox_rot_y']),
   }))
 
   return example

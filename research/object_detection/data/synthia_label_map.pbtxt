@@ -10,15 +10,6 @@ item {
 
 item {
   id: 3
-  name: 'bicycle'
-}
-
-item {
-  id: 4
   name: 'cyclist'
 }
 
-item {
-  id: 5
-  name: 'truck'
-}

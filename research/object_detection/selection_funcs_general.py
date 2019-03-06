@@ -89,6 +89,8 @@ def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3)
         entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
     elif measure == 'avg':
         entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
+    elif measure == 'sum':
+        entropies = [np.sum(entropy(d_sm)) for d_sm in dets_sm]
     elif measure == 'topk':
         topk_lists = [entropy(d_sm).tolist() if len(d_sm) > 0 else []  for d_sm in dets_sm]
         entropies = []
@@ -269,6 +271,76 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         predictions = detections['scores']
+
+        scores_videos = []
+        idx_videos = []
+        #num_frames = []
+
+        t_start = time.time()
+
+        for v in videos:
+
+            # Select frames in current video
+            frames = [f['idx'] for f in dataset if f['video'] == v]
+
+            # Get only those that are not labeled
+            frames = [f for f in frames if f in unlabeled_set]
+
+            # If all frames of video are in active set, ignore video
+            if len(frames) > 0:
+                # Extract corresponding predictions
+                det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
+
+                # Compute average frame confidence
+                avg_conf = []
+                for df in det_frames:
+                    sel_dets = df[df > thresh_detection]
+
+                    # Do inverse of least confidence --> selection prioritizes higher scores
+                    if len(sel_dets) > 0:
+                        if measure == 'avg':
+                            acf = 1-sel_dets.mean()
+                        elif measure == 'max':
+                            acf = 1-sel_dets.max()
+                        elif measure == 'topk':
+                            sel_dets = list(sel_dets)
+                            sel_dets.sort(reverse=True)
+                            acf = 1 - np.mean(sel_dets[:min(topk,len(sel_dets))])
+                        else:
+                            raise ValueError('Summary measure error')
+                    else:
+                        acf = 0
+                    avg_conf.append(acf)
+
+                # Convert to array for easier processing
+                avg_conf = np.asarray(avg_conf)
+
+                # Add scores
+                scores_videos.append(avg_conf)
+
+                # Frames already contains list of global indices
+                idx_videos.append(np.asarray(frames))
+
+                # Save number of frames for padding purposes
+                #num_frames.append(len(frames))
+
+        elapsed_time = time.time() - t_start
+        print("All videos processed in:{:.2f} seconds".format(elapsed_time))
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
+
+        return indices
+
+# Pass unlabeled set as argument instead of recomputing here?
+def select_marginal(dataset,videos,active_set, detections, data_dir='', name='emptyName', cycle=1, run=1, budget=3200, neighbors_across=3, neighbors_in=5,measure='max',topk=3):
+
+        thresh_detection = 0.5
+
+        # We have detections only for the unlabeled dataset, be careful with indexing
+        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
+        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
+
+        predictions = detections['scores']
+        predictions = detections['scores_with_background']
 
         scores_videos = []
         idx_videos = []
@@ -751,13 +823,13 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
         # Select frames in current video (even those with wrong GTs)
         frames = [[f['idx'],f['filename'],f['verified']] for f in dataset if f['video'] == v]
 
-        # Get maximium index of frames in video
-        idx_all_frames_video = [f[0] for f in frames]
-        max_frame = np.max(idx_all_frames_video)
-
         # Get frames in video that are in the candidate set 
         frames_graph = [f for f in frames if f[0] in evaluation_set]
         frames_candidate = [f for f in frames if f[0] in candidate_set and f[2]]
+
+        # Get maximium index of frames in video
+        idx_all_frames_video = [f[0] for f in frames_graph]
+        max_frame = np.max(idx_all_frames_video)
 
         if len(frames_candidate) > 0:
 
@@ -832,20 +904,20 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                         idx_neighbor = idx_frame_video+t
 
                         # Check if neighbor still in video
-                        if (idx_neighbor < len(frames)) and (abs(fu[0]-frames[idx_neighbor][0])<num_frames_to_track+2) :
-                            frame_list_f.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                        if (idx_neighbor < len(frames_graph)) and (abs(fu[0]-frames_graph[idx_neighbor][0])<num_frames_to_track+2) :
+                            frame_list_f.append(os.path.join(video_dir,frames_graph[idx_neighbor][1]))
                             # Take only those of the current class
                             #detections_neighbors_f.append(detected_boxes[evaluation_set.index(fu[0]+t)][detected_labels[evaluation_set.index(fu[0]+t)] == labels_frame[idx_det]])
 
                     ###### Backward part
                     #detections_neighbors_b = []
-                    frame_list_b = [os.path.join(video_dir,frames[idx_frame_video][1])]
+                    frame_list_b = [os.path.join(video_dir,frames_graph[idx_frame_video][1])]
 
                     for t in range(1,num_frames_to_track+1):
                         idx_neighbor = idx_frame_video-t
                         #if idx_neighbor >= 0:
-                        if (idx_neighbor >= 0) and (abs(fu[0]-frames[idx_neighbor][0])<num_frames_to_track+2):
-                            frame_list_b.append(os.path.join(video_dir,frames[idx_neighbor][1]))
+                        if (idx_neighbor >= 0) and (abs(fu[0]-frames_graph[idx_neighbor][0])<num_frames_to_track+2):
+                            frame_list_b.append(os.path.join(video_dir,frames_graph[idx_neighbor][1]))
                             # Take only those of the current class
                             #detections_neighbors_b.append(detected_boxes[evaluation_set.index(fu[0]-t)][detected_labels[evaluation_set.index(fu[0]-t)] == labels_frame[idx_det]])
 
