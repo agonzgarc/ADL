@@ -9,7 +9,7 @@ import tensorflow as tf
 import imp
 import time
 import pickle
-import maxflow
+#import maxflow
 from itertools import compress
 
 # Visualization
@@ -130,7 +130,8 @@ def normalize_box(box,w,h):
 
 ##################################################### End of auxiliary functions
 
-def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,num_neighbors=5,budget=3200):
+def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,num_neighbors=5,budget=3200,disambiguity=None):
+
 
     if not os.path.exists(data_dir +'/frames_and_scores'):
          os.mkdir(data_dir +'/frames_and_scores')
@@ -138,67 +139,142 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
     with open(data_dir +'/frames_and_scores/scores_videos_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_scores:
          pickle.dump(scores_videos,outfile_scores, protocol=pickle.HIGHEST_PROTOCOL)
 
+    if disambiguity:
+         with open(data_dir +'/frames_and_scores/disambiguity_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_scores:
+             pickle.dump(disambiguity,outfile_scores, protocol=pickle.HIGHEST_PROTOCOL)
+
     with open(data_dir +'/frames_and_scores/idx_videos_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_videos_idx:
          pickle.dump(idx_videos,outfile_videos_idx, protocol=pickle.HIGHEST_PROTOCOL)
 
+    """
+    #----------------statistics before sorting and selecting candidates------------------------
+    scores_greater_than_zero=np.sum(np.array(scores_videos) > 0)
+    scores_equal_to_zero=np.sum(np.array(scores_videos) == 0)
+
+    with open(data_dir +'/frames_and_scores/before_selection_frame_statistics_'+name+'run_'+str(run)+'_cycle_'+str(cycle)+'.txt','a') as myfile:
+       myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)+'\n') 
+       myfile.write('scores_equal_to_zero= '+str(scores_equal_to_zero)+'\n')
+       if disambiguity:
+          myfile.write('scores_disambiguity= '+str(scores_disambiguity)+'\n')
+       myfile.write('=================================================='+'\n') 
+    """
 
     number_of_vids=len(idx_videos)
     vid_length=[len(v) for v in idx_videos]
     max_vid_length=max(vid_length)
-
     SCORES=np.zeros((number_of_vids,max_vid_length))
     IDX=np.zeros((number_of_vids,max_vid_length),dtype=int)
     CANDIDATES=np.zeros((number_of_vids,max_vid_length),dtype=int)-1
     CANDIDATES_SC=np.zeros((number_of_vids,max_vid_length))-1
 
-    for v in range(number_of_vids):
 
-      idx=idx_videos[v]
-      scores=scores_videos[v]
-      shuffled_vec=[i for i in range(len(scores))]
-      random.shuffle(shuffled_vec)
-      SCORES[v,:]=np.pad(scores[shuffled_vec], (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
-      IDX[v,:]=np.pad(idx[shuffled_vec], (0,max_vid_length-len(idx)), 'constant', constant_values=-1)
+    if disambiguity:
+       DISAMBIGUITY=np.zeros((number_of_vids,max_vid_length))-1 
+       DISAMBIGUITY_SC=np.zeros((number_of_vids,max_vid_length))-1
+
+
+    for v in range(number_of_vids):
+        idx=idx_videos[v]
+        scores=scores_videos[v]
+        shuffled_vec=[i for i in range(len(scores))]
+        random.shuffle(shuffled_vec)
+        SCORES[v,:]=np.pad(scores[shuffled_vec], (0,max_vid_length-len(scores)), 'constant', constant_values=-1)
+        IDX[v,:]=np.pad(idx[shuffled_vec], (0,max_vid_length-len(idx)), 'constant', constant_values=-1)
+        if disambiguity:
+           disambig=disambiguity[v]
+           DISAMBIGUITY[v,:]=np.pad(disambig[shuffled_vec], (0,max_vid_length-len(disambig)), 'constant', constant_values=-1)
 
     #--------------------------SORTING THE SCORES IN DESCENDING ORDER-----------------------
     sorted_SCORES=np.flip(np.sort(SCORES,axis=1),1)
     AUX=np.flip(np.argsort(SCORES,axis=1),1)  
     sorted_INDICES=np.zeros((number_of_vids,max_vid_length),dtype=int)
+    if disambiguity:
+        sorted_DISAMBIGUITY=np.zeros((number_of_vids,max_vid_length)) 
+    #---------------------------------------------------------------------------------------
+
     for i in range(number_of_vids):
-    	sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
+        sorted_INDICES[i,:]=IDX[i,AUX[i,:]]
+        if disambiguity:
+           sorted_DISAMBIGUITY[i,:]=DISAMBIGUITY[i,AUX[i,:]]
 
-
-    for v in range(0,number_of_vids):
+    for v in range(number_of_vids):
       iter=0
       sorted_indices=sorted_INDICES[v,:]
       sorted_scores=sorted_SCORES[v,:]
-      idx_max=sorted_indices[0]
-      score_max=sorted_scores[0]
-      while(score_max>=0):  
+      if disambiguity:
+          sorted_disamb=sorted_DISAMBIGUITY[v,:]
+          idx_tie1=np.where(sorted_scores[0]==sorted_scores)
+          if len(idx_tie1[0])>1:
+             max_tie1=np.max(sorted_disamb[idx_tie1])
+             idx_tie2=np.where(sorted_disamb[idx_tie1]==max_tie1)
+             if len(idx_tie2[0])>1: 
+                idx=np.random.choice(idx_tie2[0]) 
+             else:
+                idx=idx_tie2[0]     
+          else: 
+             idx=idx_tie1[0]
+          score_max=sorted_scores[idx]
+          idx_max=sorted_indices[idx]
+      else:
+          score_max=sorted_scores[0]
+          idx_max=sorted_indices[0]
+
+      while(score_max>=0):
+
         CANDIDATES[v,iter]=idx_max
         CANDIDATES_SC[v,iter]=score_max
+
         left=max(idx_max-num_neighbors,0)
         right=min(idx_max+num_neighbors,max(sorted_indices))
         frames_to_remove=np.arange(left,right+1,1)
+        print('frames_to_remove= ', frames_to_remove)
         IND = np.in1d(sorted_indices, frames_to_remove) #intersection
         shrinked_indices=sorted_indices[~IND] # removing frames from indices
-        shrinked_scores=sorted_scores[~IND] # removing frames from scores    
-        sorted_scores=shrinked_scores
+        shrinked_scores=sorted_scores[~IND] # removing frames from scores
         sorted_indices=shrinked_indices
+        sorted_scores=shrinked_scores
+        if disambiguity:
+           shrinked_disamb=sorted_disamb[~IND]
+           sorted_disamb=shrinked_disamb
+
         if sorted_indices.size != 0:
-           idx_max=sorted_indices[0]
-           score_max=sorted_scores[0]
+           if disambiguity:
+              idx_tie1=np.where(sorted_scores[0]==sorted_scores)
+              if len(idx_tie1[0])>1:
+                 max_tie1=np.max(sorted_disamb[idx_tie1])
+                 idx_tie2=np.where(sorted_disamb[idx_tie1]==max_tie1)
+                 if len(idx_tie2[0])>1: 
+                    idx=np.random.choice(idx_tie2[0]) 
+                 else:
+                    idx=idx_tie2[0]     
+              else: 
+                 idx=idx_tie1[0]
+              score_max=sorted_scores[idx]
+              idx_max=sorted_indices[idx]
+           else:
+              score_max=sorted_scores[0]
+              idx_max=sorted_indices[0]
         else:
            break
         iter=iter+1    
     
-    #----------------SELECTING FRAMES FROM TOP CANDIDATES------------------------
+    #----------------statistics after sorting and selection and removing of neighbors------------------------
+
+    """
+    if disambiguity:	
+       A=np.array(CANDIDATES_SC) > 0
+       DISAMBIGUITY_SC[A]
+
     scores_greater_than_zero=np.sum(np.array(CANDIDATES_SC) > 0)
-    scrores_equal_to_zero=np.sum(np.array(CANDIDATES_SC) == 0)
-    with open(data_dir +'/frames_and_scores/frame_statistics_'+name+'run_'+str(run)+'_cycle_'+str(cycle)+'.txt','a') as myfile:
+    scores_equal_to_zero=np.sum(np.array(CANDIDATES_SC) == 0)
+
+    with open(data_dir +'/frames_and_scores/after_selection_frame_statistics_'+name+'run_'+str(run)+'_cycle_'+str(cycle)+'.txt','a') as myfile:
        myfile.write('scores_greater_than_zero= '+str(scores_greater_than_zero)+'\n') 
-       myfile.write('scrores_equal_to_zero= '+str(scrores_equal_to_zero)+'\n')
+       myfile.write('scores_equal_to_zero= '+str(scores_equal_to_zero)+'\n')
+       if disambiguity:
+          myfile.write('scores_equal_to_zero= '+str(scores_equal_to_zero)+'\n')
        myfile.write('=================================================='+'\n') 
+    """
 
     b=0    
     sel_idx=np.zeros(budget,dtype=int)-1
@@ -232,7 +308,8 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
 
 
 
-def select_random(dataset,videos,active_set,budget=3200,neighbors_across=3,neighbors_in=5):
+def select_random(dataset,videos,active_set,data_dir='', name='emptyName', cycle=1, run=1,budget=3200,neighbors_across=3,neighbors_in=5):
+
 
     # Random might start with an empty active_set (first cycle)
     if active_set:
@@ -254,7 +331,7 @@ def select_random(dataset,videos,active_set,budget=3200,neighbors_across=3,neigh
             scores_videos.append(np.zeros(len(frames)))
             #num_frames.append(len(frames))
 
-    indices=top_score_frames_selector(scores_videos, idx_videos,num_neighbors=neighbors_in,budget=budget)
+    indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
     return indices
 
 # Pass unlabeled set as argument instead of recomputing here?
@@ -384,6 +461,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 	iou_thresh=0.75 	    
 	scores_videos = []
 	idx_videos = []
+	disambiguity=[]
 
 	aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=3)
 	unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
@@ -405,6 +483,16 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 	stat_data['FP_info']=[]
 
 	for v in videos: 
+
+		#if v=='test5_14segs_weather_0_spawn_0_roadTexture_2_P_None_C_None_B_None_WC_None/24-10-2018_20-30-41': # "cyclist" video in val set
+		#if v=='test5_28segs_weather_4_spawn_1_roadTexture_2_P_None_C_None_B_None_WC_None/24-10-2018_22-38-23': # "bicycle" video in val set
+		#if v=='test5_14segs_weather_2_spawn_1_roadTexture_1_P_None_C_None_B_None_WC_None/24-10-2018_21-27-06':
+		#if v=='test5_15segs_weather_0_spawn_1_roadTexture_0_P_None_C_None_B_None_WC_None/24-10-2018_20-32-51':
+		#	print('yes !')		
+		#else:
+		#	print('no !')
+		#	continue
+
 
 		# Select frames in current video
 		frames = [f['idx'] for f in dataset if f['video'] == v and f['idx'] in unlabeled_set]
@@ -453,11 +541,67 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 			elif 'FN_gt' in name: 
 				scores_videos.append(FN)
 				idx_videos.append(np.asarray(frames))			
-			elif'FPN' in name: 
+			elif 'FPN' in name: 
 				scores_videos.append(FP+FN)
+				disambiguity.append(FN)
 				idx_videos.append(np.asarray(frames))	
+		"""
+		##========================visualization to check FN/FP ================================		
+		for f in frames:	
+					# -----------------------------------plotting the groundtruth boxes ------------------------------------
+					IndInDs=f
+					#pdb.set_trace()
+					anno_ind=unlabeled_set.index(f)                                          
+					#video_dir = os.path.join(data_dir,'Data','VID','train',v) #imagenet
+					video_dir = os.path.join(data_dir,'val',v,'RGB') # synthia						
+					curr_im = Image.open(os.path.join(video_dir,dataset[IndInDs]['filename']))
+					im_w,im_h = curr_im.size
+					for l in range(len(gt_labels[anno_ind])):  # plotting the groundtruth boxes
+						if gt_labels[anno_ind][l]==-1:
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='sienna')
+						elif gt_labels[anno_ind][l]==0: #car
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='yellow')
+						elif gt_labels[anno_ind][l]==1: #pedestrian
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='lightpink')
+						elif gt_labels[anno_ind][l]==2: #bicycle
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='springgreen')
+						elif gt_labels[anno_ind][l]==3: #cyclist
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='sandybrown')
+						elif gt_labels[anno_ind][l]==4: #truck
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='orange')
+						else :
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_boxes[anno_ind][[l]],im_w,im_h),color='skyblue')
 
-	indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=5, budget=budget)
+					# -----------------------------------plotting the detection boxes ------------------------------------
+
+					ind=SCORES[anno_ind] > score_thresh # Extracting boxes with score greater than threshold
+					boxes=np.array(BOXES[anno_ind])[ind,:]
+					labels=LABELS[anno_ind][ind]
+					for l in range(len(labels)):   
+						if labels[l]==-1:
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='sienna',thickness=1)
+						elif labels[l]==0: #car
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='yellow',thickness=1)
+						elif labels[l]==1: #pedestrian
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='lightpink',thickness=1)
+						elif labels[l]==2: #bicycle
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='springgreen',thickness=1)
+						elif labels[l]==3: #cyclist
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='sandybrown',thickness=1)
+						elif labels[l]==4: #truck
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='orange',thickness=1)
+						else :
+							vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(boxes[[l]],im_w,im_h),color='skyblue',thickness=1)
+
+					draw = ImageDraw.Draw(curr_im)
+					curr_im.show()
+					curr_im.save(data_dir+'/Samples/'+dataset[IndInDs]['filename'][:-4]+'_FN_'+str(int(FN[frames.index(f)]))+'_FP_'\
+					+str(int(FP[frames.index(f)]))+'_TP_'+str(int(TP[frames.index(f)]))+'.png')
+
+		pdb.set_trace()
+		"""
+
+	indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=5, budget=budget, disambiguity=disambiguity)
 	return indices
 
 
