@@ -20,6 +20,7 @@ from object_detection.utils import label_map_util
 from object_detection.utils import np_box_ops
 from object_detection.utils import np_box_list
 from object_detection.utils import np_box_list_ops
+from object_detection.utils import AL_utils as AL
 
 from pycocotools import mask
 
@@ -78,14 +79,14 @@ if FLAGS.dataset == 'imagenet':
           'annotations_dir':'Annotations',
           'dataset': FLAGS.dataset,
           'label_map_path': './data/imagenetvid_label_map.pbtxt',
-          'set': 'train_150K_clean'}
+          'set': 'val'}
           #'set': 'train_short_clean'}
 elif FLAGS.dataset == 'synthia':
     data_info = {'data_dir': FLAGS.data_dir,
           'annotations_dir':'Annotations',
           'dataset': FLAGS.dataset,
           'label_map_path': './data/synthia_label_map.pbtxt',
-          'set': 'train'}
+          'set': 'val'}
           #'set': 'train_short'}
 else:
    raise ValueError('Dataset error: select imagenet or synthia')
@@ -132,6 +133,7 @@ if __name__ == "__main__":
         os.mkdir(os.path.join(FLAGS.perf_dir,FLAGS.dataset))
 
     output_file = os.path.join(FLAGS.perf_dir,FLAGS.dataset,name + 'R' + str(run_num) + 'c' + str(num_cycles) +'.pkl')
+
 
     # Dictionary to save performance of every run
     performances = {}
