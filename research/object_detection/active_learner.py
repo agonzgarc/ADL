@@ -470,7 +470,7 @@ if __name__ == "__main__":
                                                      name=name, cycle=cycle, run=run_num,budget=budget, measure='sum')
                     elif ('Lst' in name):
                         indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes, data_dir=FLAGS.data_dir,
-                                                     name=name, cycle=cycle, run=run_num,budget=budget, measure='topk')
+                                                     name=name, cycle=cycle, run=run_num,budget=budget, measure='sum')
                     elif ('GraphTC' in name):
                         indices = sel.select_GraphTC(dataset,videos,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],data_dir=FLAGS.data_dir,
                                                      name=name, cycle=cycle, run=run_num,budget=budget,mode=mode_TC)

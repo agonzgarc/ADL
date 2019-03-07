@@ -100,6 +100,8 @@ def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3)
                 entropies.append(np.mean(i[min(len(i)-1,topk)]))
             else:
                 entropies.append(-1)
+    else:
+        raise ValueError('Summary measure error')
     return entropies
 
 
@@ -302,6 +304,8 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
                             acf = 1-sel_dets.mean()
                         elif measure == 'max':
                             acf = 1-sel_dets.max()
+                        elif measure == 'sum':
+                            acf = len(sel_dets)-sel_dets.sum()
                         elif measure == 'topk':
                             sel_dets = list(sel_dets)
                             sel_dets.sort(reverse=True)
