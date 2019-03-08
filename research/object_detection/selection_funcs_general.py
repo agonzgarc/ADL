@@ -148,8 +148,8 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
          pickle.dump(scores_videos,outfile_scores, protocol=pickle.HIGHEST_PROTOCOL)
 
     if disambiguity:
-         with open(data_dir +'/frames_and_scores/disambiguity_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_scores:
-             pickle.dump(disambiguity,outfile_scores, protocol=pickle.HIGHEST_PROTOCOL)
+         with open(data_dir +'/frames_and_scores/disambiguity_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_disam:
+             pickle.dump(disambiguity,outfile_disam, protocol=pickle.HIGHEST_PROTOCOL)
 
     with open(data_dir +'/frames_and_scores/idx_videos_'+name+'cycle_'+str(cycle)+'_run_'+str(run)+'.dat','wb') as outfile_videos_idx:
          pickle.dump(idx_videos,outfile_videos_idx, protocol=pickle.HIGHEST_PROTOCOL)
