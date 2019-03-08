@@ -9,7 +9,7 @@ import tensorflow as tf
 import imp
 import time
 import pickle
-#import maxflow
+import maxflow
 from itertools import compress
 
 # Visualization
@@ -236,7 +236,7 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
         left=max(idx_max-num_neighbors,0)
         right=min(idx_max+num_neighbors,max(sorted_indices))
         frames_to_remove=np.arange(left,right+1,1)
-        print('frames_to_remove= ', frames_to_remove)
+        #print('frames_to_remove= ', frames_to_remove)
         IND = np.in1d(sorted_indices, frames_to_remove) #intersection
         shrinked_indices=sorted_indices[~IND] # removing frames from indices
         shrinked_scores=sorted_scores[~IND] # removing frames from scores
@@ -409,7 +409,7 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
 
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
-        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget,thresh_video=-1)
 
         return indices
 
@@ -529,7 +529,7 @@ def select_entropy(dataset,videos,active_set,detections,data_dir='', name='empty
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
 
-        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget,thresh_video=-1)
         return indices
 
 
@@ -931,8 +931,9 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                    neighbors_in=5,budget=3200,mode='FP'):
 
     # Selector configuration
-    threshold_track = 0.7
+    threshold_track = 0.5
     num_frames_to_track = 3
+    threshold_rem_track = 0.75
 
     # Tracker configuration
     hp, evaluation, run, env, design = parse_arguments()
@@ -978,10 +979,10 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
         frames_candidate = [f for f in frames if f[0] in candidate_set and f[2]]
 
         # Get maximium index of frames in video
-        idx_all_frames_video = [f[0] for f in frames_graph]
-        max_frame = np.max(idx_all_frames_video)
 
         if len(frames_candidate) > 0:
+            idx_all_frames_video = [f[0] for f in frames_graph]
+            max_frame = np.max(idx_all_frames_video)
 
             frame_counter = 0
 
@@ -1027,7 +1028,6 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
 
                 num_good_dets = labels_frame.shape[0]
-
                 num_good_dets_video.append(num_good_dets)
 
                 for idx_det in range(num_good_dets):
@@ -1107,6 +1107,8 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                     fu = frames_graph[idx]
 
                     for idx_det in range(len(local_dets[idx])):
+
+                        label_det = local_dets[idx][idx_det]['label']
                         bboxes = bboxes_video.pop(0)
                         frame_list = frame_list_video.pop(0)
 
@@ -1116,12 +1118,12 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
                         for t in range(1,len(frame_list_f)):
                             if idx+t < len(tracked_dets):
-                                tracked_dets[idx+t].append({'idx_frame':idx, 'idx_det':idx_det,'box':convert_boxes_xy(bboxes_f[t]).reshape((1,4))})
+                                tracked_dets[idx+t].append({'idx_frame':idx, 'idx_det':idx_det,'label':label_det,'box':convert_boxes_xy(bboxes_f[t]).reshape((1,4))})
 
                         bboxes_b = bboxes[1]
                         frame_list_b = frame_list[1]
                         for t in range(1,len(frame_list_b)):
-                            tracked_dets[idx-t].append({'idx_frame':idx, 'idx_det':idx_det,'box':convert_boxes_xy(bboxes_b[t]).reshape((1,4))})
+                            tracked_dets[idx-t].append({'idx_frame':idx, 'idx_det':idx_det,'label':label_det,'box':convert_boxes_xy(bboxes_b[t]).reshape((1,4))})
 
                 remaining_tracks = []
 
@@ -1135,8 +1137,10 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 # Now associate detections from different frames 
                 for idx in range(len(frames_graph)):
                     det_boxes = []
+                    det_labels = []
                     for i, det in enumerate(local_dets[idx]):
                         det_boxes.append(det['box'])
+                        det_labels.append(det['label'])
 
                         # Save information of detection 
                         det_info[det_counter,0] = idx
@@ -1146,28 +1150,77 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                         det['assoc']=[]
 
                     tracked_boxes = []
+                    tracked_labels = []
                     for track in tracked_dets[idx]:
                         tracked_boxes.append(track['box'])
+                        tracked_labels.append(track['label'])
 
                     tracked_boxes = np.asarray(tracked_boxes).reshape(len(tracked_boxes),4)
                     det_boxes = np.asarray(det_boxes).reshape(len(det_boxes),4)
 
                     ovTr = np_box_ops.iou(tracked_boxes,det_boxes)
 
-                    # Save what tracks are not going to match any detection
-                    if len(det_boxes)>0:
-                        remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
-                                              'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i,x in enumerate(np.max(ovTr,axis=1) < 0.5) if x])
-                    else:
-                        # Add all tracks as remaining if there is no detection
-                        remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
-                                              'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i in range(len(tracked_dets[idx]))])
-
+                    used_tracks = []
                     for idx_det in range(len(local_dets[idx])):
-                        idx_assoc = ovTr[:,idx_det] > 0.5
-                        matching_dets = list(compress(tracked_dets[idx],idx_assoc))
+                        # Get those tracks that have high overlap and the same label as the current detection
+                        idx_assoc_labels = [i for i in range(len(tracked_labels)) if ovTr[i,idx_det] > threshold_track and tracked_labels[i] == local_dets[idx][idx_det]['label']]
+                        used_tracks.extend(idx_assoc_labels)
+                        matching_dets = [tracked_dets[idx][i] for i in idx_assoc_labels]
+                        #matching_dets = list(compress(tracked_dets[idx],idx_assoc))
                         for md in matching_dets:
                             local_dets[idx][idx_det]['assoc'].append({'idx_frame':md['idx_frame'],'idx_det':md['idx_det']})
+
+                     # Save what tracks are not going to match any detection
+                    if len(det_boxes)>0:
+                        unused_tracks = list(set(range(len(tracked_labels))) - set(used_tracks))
+                    else:
+                        unused_tracks = range(len(tracked_labels))
+
+                    rem_tracks_frame = [tracked_dets[idx][i] for i in unused_tracks]
+                    idx_group = 0
+                    while len(rem_tracks_frame)>1:
+                        # Process one of remaining tracks at a time (taking first, random/highest IoU might be better)
+                        curr_track = rem_tracks_frame[0]['box'].reshape(1,4)
+                        rem_tracks = [rem_tracks_frame[i]['box'][0] for i in range(len(rem_tracks_frame))]
+                        rem_tracks = np.asarray(rem_tracks).reshape(len(rem_tracks),4)
+                        ovTr = np_box_ops.iou(curr_track,rem_tracks)
+                        track_group = ovTr > threshold_rem_track
+                        idx_det_frame_group = [rem_tracks_frame[i]['idx_frame'] for i in range(len(rem_tracks)) if track_group[0][i]]
+                        idx_det_group = [rem_tracks_frame[i]['idx_det'] for i in range(len(rem_tracks)) if track_group[0][i]]
+
+                        remaining_tracks.append({'idx_track_frame':idx,'idx_det_frame':idx_det_frame_group,
+                                          'idx_det':idx_det_group,'idx_track':idx_group,'box':rem_tracks_frame[0]['box']})
+
+                        idx_group +=1
+
+                        # Remove group from rem_tracks
+                        new_rem_tracks_frame = [r for i,r in enumerate(rem_tracks_frame) if track_group[0][i] == False]
+                        rem_tracks_frame = new_rem_tracks_frame
+
+                    if len(rem_tracks_frame) == 1:
+
+                        # Add all tracks as remaining if there are no detections
+                        remaining_tracks.append({'idx_track_frame':idx,'idx_det_frame':[rem_tracks_frame[0]['idx_frame']],
+                                              'idx_det':[rem_tracks_frame[0]['idx_det']],'idx_track':idx_group,
+                                                 'box':rem_tracks_frame[0]['box']})
+
+
+
+
+                    ## Save what tracks are not going to match any detection
+                    #if len(det_boxes)>0:
+                        #remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
+                                              #'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i,x in enumerate(np.max(ovTr,axis=1) < 0.5) if x])
+                    #else:
+                        ## Add all tracks as remaining if there is no detection
+                        #remaining_tracks.extend([{'idx_track_frame':idx,'idx_det_frame':tracked_dets[idx][i]['idx_frame'],
+                                              #'idx_det':tracked_dets[idx][i]['idx_det'],'idx_track':i,'box':tracked_dets[idx][i]['box']} for i in range(len(tracked_dets[idx]))])
+
+                    #for idx_det in range(len(local_dets[idx])):
+                        #idx_assoc = ovTr[:,idx_det] > 0.5
+                        #matching_dets = list(compress(tracked_dets[idx],idx_assoc))
+                        #for md in matching_dets:
+                            #local_dets[idx][idx_det]['assoc'].append({'idx_frame':md['idx_frame'],'idx_det':md['idx_det']})
 
 
 
@@ -1200,10 +1253,17 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                     node_info[i,2]=1
                     node_boxes[i,:] = remaining_tracks[track_counter]['box']
 
+                    ## Add edge with corresponding track (checking in det_info only)
+                    #idx_orig_det = [j for j,c in enumerate(det_info) if c[0]==remaining_tracks[track_counter]['idx_det_frame'] and c[1] ==remaining_tracks[track_counter]['idx_det']]
+                    #adj_matrix[i,idx_orig_det] = 1
+                    #adj_matrix[idx_orig_det,i] = 1
+
                     # Add edge with corresponding track (checking in det_info only)
-                    idx_orig_det = [j for j,c in enumerate(det_info) if c[0]==remaining_tracks[track_counter]['idx_det_frame'] and c[1] ==remaining_tracks[track_counter]['idx_det']]
-                    adj_matrix[i,idx_orig_det] = 1
-                    adj_matrix[idx_orig_det,i] = 1
+                    # Now each remaining track might be tied to several detections as they are grouped
+                    for r in range(len(remaining_tracks[track_counter]['idx_det'])):
+                        idx_orig_det = [j for j,c in enumerate(det_info) if c[0]==remaining_tracks[track_counter]['idx_det_frame'][r] and c[1] == remaining_tracks[track_counter]['idx_det'][r]]
+                        adj_matrix[i,idx_orig_det] = 1
+                        adj_matrix[idx_orig_det,i] = 1
 
 
                     track_counter +=1
