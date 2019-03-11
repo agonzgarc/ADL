@@ -23,9 +23,7 @@ from object_detection.builders import model_builder
 from object_detection.utils import config_util
 from object_detection.save_subset_tf_record import save_tf_record
 from object_detection.utils import label_map_util
-from object_detection.utils import np_box_ops
-from object_detection.utils import np_box_list
-from object_detection.utils import np_box_list_ops
+from object_detection.utils import AL_utils as AL
 
 from pycocotools import mask
 
@@ -109,45 +107,6 @@ elif FLAGS.dataset == 'synthia':
 else:
    raise ValueError('Dataset error: select imagenet or synthia')
 
-def get_dataset(data_info):
-    """ Gathers information about the dataset given and stores it in a
-    structure at the frame level.
-    Args:
-        data_info: dictionary with information about the dataset
-    Returns:
-        dataset: structure in form of list, each element corresponds to a
-            frame and its a dictionary with multiple keys
-        videos: list of videos
-    """
-    dataset = []
-    path_file = os.path.join(data_info['data_dir'],'AL', data_info['set'] + '.txt')
-    with open(path_file,'r') as pF:
-        idx = 0
-        if data_info['dataset'] == 'imagenet':
-            for line in pF:
-                # Separate frame path and clean annotation flag
-                split_line = line.split(' ')
-                # Remove trailing \n
-                verified = True if split_line[1][:-1] == '1' else False
-                path = split_line[0]
-                split_path = path.split('/')
-                filename = split_path[-1]
-                video = split_path[-3]+'/'+split_path[-2]
-                dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
-                idx+=1
-        elif data_info['dataset'] == 'synthia':
-            for path in pF:
-                split_path = path.split('/')
-                filename = split_path[-1][:-1]
-                video = split_path[-4]+'/'+split_path[-3]
-                dataset.append({'idx':idx,'filename':filename,'video':video,'verified':True})
-                idx+=1
-        else:
-            raise ValueError('Dataset error: select imagenet or synthia')
-
-    videos = list(set([d['video'] for d in dataset]))
-    return dataset,videos
-
 def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
     detected_boxes = detections['boxes']
     detected_scores = detections['scores']
@@ -161,9 +120,9 @@ def visualize_detections(dataset, unlabeled_set, detections, groundtruths):
             curr_im = Image.open(im_path)
             im_w,im_h = curr_im.size
             gt_im = gt_boxes[unlabeled_set.index(f['idx'])]
-            vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(gt_im,im_w,im_h))
+            vis_utils.draw_bounding_boxes_on_image(curr_im,AL.normalize_box(gt_im,im_w,im_h))
             det_im = detected_boxes[unlabeled_set.index(f['idx'])]
-            vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(det_im[:2,],im_w,im_h),color='green')
+            vis_utils.draw_bounding_boxes_on_image(curr_im,AL.normalize_box(det_im[:2,],im_w,im_h),color='green')
             curr_im.show()
 
 #def main(_):
@@ -199,7 +158,7 @@ if __name__ == "__main__":
     eval_input_config = configs['eval_input_config']
 
     # Get info about full dataset
-    dataset,videos = get_dataset(data_info)
+    dataset,videos = AL.get_dataset(data_info)
 
     num_videos = len(videos)
 
@@ -254,8 +213,13 @@ if __name__ == "__main__":
     # Special case for cycle 0
     if num_cycles == 0:
 
-        cycle = 0
+        # Use this to save tf record for validation
+        #data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/val' + data_info['set'] + '.record'
+        #all_verified  = [f['idx'] for f in dataset if f['verified']]
+        #save_tf_record(data_info,all_verified)
 
+
+        cycle = 0
         # Select one frame per video
         indices = sel.select_random(dataset,videos,active_set,budget=len(videos))
 
@@ -269,6 +233,8 @@ if __name__ == "__main__":
         with open(train_dir + '/active_set.txt', 'w') as f:
             for item in active_set:
                 f.write('{}\n'.format(item))
+
+
 
         data_info['output_path'] = FLAGS.data_dir + 'AL/tfrecords/R' + str(run_num) + 'cycle' +  str(cycle) + '.record'
         save_tf_record(data_info,active_set)
@@ -385,7 +351,7 @@ if __name__ == "__main__":
                     # We need to evaluate unlabeled frames if method is other than random
 
                     # Prepare candidates: all but labeled samples, their neighbors and unverified frames
-                    aug_active_set =  sel.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
+                    aug_active_set =  AL.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
                     candidate_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
                     # In general, we need to evaluate only the candidates
@@ -393,7 +359,7 @@ if __name__ == "__main__":
 
                     # For TC approches, we need to get extra detections besides candidates (surrounding frames)
                     if ('TCFP' in name) or ('TCFN' in name):
-                        aug_candidate_set = sel.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
+                        aug_candidate_set = AL.augment_active_set(dataset,videos,candidate_set,num_neighbors=3)
                         evaluation_set = aug_candidate_set
 
                     print('Candidate frames in the dataset: {}'.format(len(candidate_set)))

@@ -17,9 +17,6 @@ from PIL import Image
 from PIL import ImageFont
 from PIL import ImageDraw
 from object_detection.utils import visualization_utils as vis_utils
-from object_detection.utils import np_box_ops
-from object_detection.utils import np_box_list
-from object_detection.utils import np_box_list_ops
 
 
 # Tracking module
@@ -29,113 +26,9 @@ from siamfc.parse_arguments import parse_arguments
 from siamfc.region_to_bbox import region_to_bbox
 
 
+from object_detection.utils import AL_utils as AL
+from object_detection.utils import np_box_ops
 
-####### Auxiliary functions - consider placing them in a separate file
-def augment_active_set(dataset,videos,active_set,num_neighbors=5):
-    """ Augment set of indices in active_set by adding a given number of neighbors
-    Arg:
-        dataset: structure with information about each frames
-        videos: list of video names
-        active_set: list of indices of active_set
-        num_neighbors: number of neighbors to include
-    Returns:
-        aug_active_set: augmented list of indices with neighbors
-    """
-    aug_active_set = []
-
-    # We need to do this per video to keep limits in check
-    for v in videos:
-        frames_video = [f['idx'] for f in dataset if f['video'] == v]
-        max_frame = np.max(frames_video)
-        idx_videos_active_set = [idx for idx in frames_video if idx in active_set]
-        idx_with_neighbors = [i for idx in idx_videos_active_set for i in range(idx-num_neighbors,idx+num_neighbors+1) if i >= 0 and i
-         <= max_frame ]
-        aug_active_set.extend(idx_with_neighbors)
-
-    # Convert to set to remove duplicates
-    return list(set(aug_active_set))
-
-
-def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3):
-    """ Given a list of predictions (class scores with background), it computes
-    the entropy of each prediction in the list
-    Args:
-        predictions: list of predictions. Each element corresponds to an image,
-            containing a numpy nd array of shape (num windows, num_classes+1)
-        threshold: minimum value for acceptable prediction
-    Returns:
-        entropies: list of the same dimension, each item is the summary entropy
-            for the corresponding image
-    """
-    # Add more summary measures, now we only have max
-
-    def softmax_pred(x):
-        e = np.exp(x)
-        return e/np.sum(e,axis=1,keepdims=True)
-
-    def entropy(x):
-        if len(x)>0:
-            return np.sum(-x*np.log(x),axis=1)
-        else:
-            return -1
-
-    all_sm = [softmax_pred(i)[1:] for i in predictions]
-    all_sm_no_background = [i[:,1:] for i in all_sm]
-
-    # Compute maximum score of each prediction
-    max_scores = np.amax(all_sm_no_background,axis=2)
-    dets_sm = [all_sm[i][max_scores[i]>threshold] for i in range(len(max_scores))]
-    if measure == 'max':
-        entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
-    elif measure == 'avg':
-        entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
-    elif measure == 'sum':
-        entropies = [np.sum(entropy(d_sm)) for d_sm in dets_sm]
-    elif measure == 'topk':
-        topk_lists = [entropy(d_sm).tolist() if len(d_sm) > 0 else []  for d_sm in dets_sm]
-        entropies = []
-        for i in topk_lists:
-            if len(i)>0:
-                i.sort(reverse=True)
-                entropies.append(np.mean(i[min(len(i)-1,topk)]))
-            else:
-                entropies.append(-1)
-    else:
-        raise ValueError('Summary measure error')
-    return entropies
-
-
-def filter_detections(boxes,scores,labels,thresh_detection = 0.5):
-    idx_good_det = scores > thresh_detection
-    return boxes[idx_good_det,:],scores[idx_good_det],labels[idx_good_det]
-
-def convert_boxes_wh(box):
-    """ Detection boxes come as [ymin,xmin,ymax,xmax]
-        We need [x,y,w,h] for tracking
-    """
-    whbox = np.array([box[1],box[0],box[3]-box[1],box[2]-box[0]])
-    return whbox
-
-def convert_boxes_xy(box):
-    """ Tracking results come as [x, y, w, h]
-        Convert back to the API's [ymin,xmin,ymax,xmax]
-    """
-    return np.array([box[1],box[0],box[1]+box[3],box[0]+box[2]])
-
-
-def normalize_box(box,w,h):
-    """ Input: [ymin, xmin,ymax,xmax]
-        Output: normalized by width and height of image
-    """
-    nbox = box.copy()
-    nbox[:,0] = nbox[:,0]/h
-    nbox[:,1] = nbox[:,1]/w
-    nbox[:,2] = nbox[:,2]/h
-    nbox[:,3] = nbox[:,3]/w
-    return nbox
-
-
-##################################################### End of auxiliary functions
 
 
 def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,num_neighbors=5,budget=3200,thresh_video=0,disambiguity=None):
@@ -287,11 +180,13 @@ def top_score_frames_selector(scores_videos,idx_videos,data_dir,name,cycle,run,n
 
     b=0    
     sel_idx=np.zeros(budget,dtype=int)-1
+    sel_scores=np.zeros(budget)
     for j in range(0,len(CANDIDATES[0])):    
         for i in range(0,len(CANDIDATES)):
             #print('i= ',i, ' j= ',j)
             if CANDIDATES_SC[i,j]>thresh_video:   # first pick the frames with scores > 0
                 sel_idx[b]=CANDIDATES[i,j]
+                sel_scores[b] = CANDIDATES_SC[i,j]
                 b=b+1
                 if b==budget:
                    break
@@ -321,7 +216,7 @@ def select_random(dataset,videos,active_set,data_dir='', name='emptyName', cycle
 
     # Random might start with an empty active_set (first cycle)
     if active_set:
-        aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
+        aug_active_set = AL.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
     else:
         aug_active_set = active_set
 
@@ -348,7 +243,7 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
         thresh_detection = 0.5
 
         # We have detections only for the unlabeled dataset, be careful with indexing
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
+        aug_active_set =  AL.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         predictions = detections['scores']
@@ -419,7 +314,7 @@ def select_marginal(dataset,videos,active_set, detections, data_dir='', name='em
         thresh_detection = 0.5
 
         # We have detections only for the unlabeled dataset, be careful with indexing
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
+        aug_active_set =  AL.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         predictions = detections['scores']
@@ -483,12 +378,62 @@ def select_marginal(dataset,videos,active_set, detections, data_dir='', name='em
 
         return indices
 
+def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3):
+    """ Given a list of predictions (class scores with background), it computes
+    the entropy of each prediction in the list
+    Args:
+        predictions: list of predictions. Each element corresponds to an image,
+            containing a numpy nd array of shape (num windows, num_classes+1)
+        threshold: minimum value for acceptable prediction
+    Returns:
+        entropies: list of the same dimension, each item is the summary entropy
+            for the corresponding image
+    """
+    # Add more summary measures, now we only have max
+
+    def softmax_pred(x):
+        e = np.exp(x)
+        return e/np.sum(e,axis=1,keepdims=True)
+
+    def entropy(x):
+        if len(x)>0:
+            return np.sum(-x*np.log(x),axis=1)
+        else:
+            return -1
+
+    all_sm = [softmax_pred(i)[1:] for i in predictions]
+    all_sm_no_background = [i[:,1:] for i in all_sm]
+
+    # Compute maximum score of each prediction
+    max_scores = np.amax(all_sm_no_background,axis=2)
+    dets_sm = [all_sm[i][max_scores[i]>threshold] for i in range(len(max_scores))]
+    if measure == 'max':
+        entropies = [np.max(entropy(d_sm)) for d_sm in dets_sm]
+    elif measure == 'avg':
+        entropies = [np.mean(entropy(d_sm)) for d_sm in dets_sm]
+    elif measure == 'sum':
+        entropies = [np.sum(entropy(d_sm)) for d_sm in dets_sm]
+    elif measure == 'topk':
+        topk_lists = [entropy(d_sm).tolist() if len(d_sm) > 0 else []  for d_sm in dets_sm]
+        entropies = []
+        for i in topk_lists:
+            if len(i)>0:
+                i.sort(reverse=True)
+                entropies.append(np.mean(i[min(len(i)-1,topk)]))
+            else:
+                entropies.append(-1)
+    else:
+        raise ValueError('Summary measure error')
+    return entropies
+
+
+
 def select_entropy(dataset,videos,active_set,detections,data_dir='', name='emptyName', cycle=1, run=1,budget=3200, neighbors_across=3, neighbors_in=5,measure='max',topk=3):
 
         thresh_detection = 0.5
 
         # We have detections only for the labeled dataset, be careful with indexing
-        aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
+        aug_active_set =  AL.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
         unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         predictions = detections['scores_with_background']
@@ -542,7 +487,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 	idx_videos = []
 	disambiguity=[]
 
-	aug_active_set =  augment_active_set(dataset,videos,active_set,num_neighbors=3)
+	aug_active_set =  AL.augment_active_set(dataset,videos,active_set,num_neighbors=3)
 	unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
 
         # We have detections only for the labeled dataset, be careful with indexing
@@ -715,7 +660,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 
     ## Get only top detections
     #for i in range(len(detected_boxes)):
-        #detected_boxes[i],detected_scores[i],detected_labels[i] = filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
+        #detected_boxes[i],detected_scores[i],detected_labels[i] = AL.filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
 
     ##gt_boxes = groundtruths['boxes']
     #for v in videos:
@@ -789,7 +734,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 
                     ####### Common part for forward and backward tracking
                     ## Convert [y x y x] to [y x w h]
-                    #curr_box = convert_boxes_wh(boxes_frame[idx_det])
+                    #curr_box = AL.convert_boxes_wh(boxes_frame[idx_det])
                     #pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
 
                     ## Append them twice, forward and backward
@@ -862,7 +807,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
                         ## Visualize track and detections
                         ##curr_im = Image.open(frame_list_f[t])
                         ##im_w,im_h = curr_im.size
-                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes_f[t]).reshape((1,4)),im_w,im_h))
+                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(AL.convert_boxes_xy(bboxes_f[t]).reshape((1,4)),im_w,im_h))
                         ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors_f[t-1],im_w,im_h),color='green')
                         ##curr_im.show()
 
@@ -870,7 +815,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 
                         ## Check if tracked detection matches any detection in neighbor frame, if any
                         #if len(detections_neighbors_f[t-1]) > 0:
-                            #ovTr = np_box_ops.iou(convert_boxes_xy(bboxes_f[t]).reshape((1,4)),detections_neighbors_f[t-1])
+                            #ovTr = np_box_ops.iou(AL.convert_boxes_xy(bboxes_f[t]).reshape((1,4)),detections_neighbors_f[t-1])
                             ## Increment score if it does
                             #if np.max(ovTr) > threshold_track:
                                 #tc_sum_frame[idx_det] += 1
@@ -887,7 +832,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
                         ### Visualize track and detections
                         ##curr_im = Image.open(frame_list_b[t])
                         ##im_w,im_h = curr_im.size
-                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(convert_boxes_xy(bboxes_b[t]).reshape((1,4)),im_w,im_h))
+                        ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(AL.convert_boxes_xy(bboxes_b[t]).reshape((1,4)),im_w,im_h))
                         ##vis_utils.draw_bounding_boxes_on_image(curr_im,normalize_box(detections_neighbors_b[t-1],im_w,im_h),color='green')
                         ##curr_im.show()
 
@@ -896,7 +841,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 
                         ## Check if tracked detection matches any detection in neighbor frame, if any
                         #if len(detections_neighbors_b[t-1]) > 0:
-                            #ovTr = np_box_ops.iou(convert_boxes_xy(bboxes_b[t]).reshape((1,4)),detections_neighbors_b[t-1])
+                            #ovTr = np_box_ops.iou(AL.convert_boxes_xy(bboxes_b[t]).reshape((1,4)),detections_neighbors_b[t-1])
                             ## Increment score if it does
                             #if np.max(ovTr) > threshold_track:
                                 #tc_sum_frame[idx_det] += 1
@@ -959,7 +904,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
     # Get only top detections
     for i in range(len(detected_boxes)):
-        detected_boxes[i],detected_scores[i],detected_labels[i] = filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
+        detected_boxes[i],detected_scores[i],detected_labels[i] = AL.filter_detections(detected_boxes[i],detected_scores[i],detected_labels[i])
 
     #gt_boxes = groundtruths['boxes']
     for v in videos:
@@ -1037,7 +982,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
                     ###### Common part for forward and backward tracking
                     # Convert [y x y x] to [y x w h]
-                    curr_box = convert_boxes_wh(boxes_frame[idx_det])
+                    curr_box = AL.convert_boxes_wh(boxes_frame[idx_det])
                     pos_x, pos_y, target_w, target_h = region_to_bbox(curr_box)
 
                     # Append them twice, forward and backward
@@ -1118,12 +1063,12 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
                         for t in range(1,len(frame_list_f)):
                             if idx+t < len(tracked_dets):
-                                tracked_dets[idx+t].append({'idx_frame':idx, 'idx_det':idx_det,'label':label_det,'box':convert_boxes_xy(bboxes_f[t]).reshape((1,4))})
+                                tracked_dets[idx+t].append({'idx_frame':idx, 'idx_det':idx_det,'label':label_det,'box':AL.convert_boxes_xy(bboxes_f[t]).reshape((1,4))})
 
                         bboxes_b = bboxes[1]
                         frame_list_b = frame_list[1]
                         for t in range(1,len(frame_list_b)):
-                            tracked_dets[idx-t].append({'idx_frame':idx, 'idx_det':idx_det,'label':label_det,'box':convert_boxes_xy(bboxes_b[t]).reshape((1,4))})
+                            tracked_dets[idx-t].append({'idx_frame':idx, 'idx_det':idx_det,'label':label_det,'box':AL.convert_boxes_xy(bboxes_b[t]).reshape((1,4))})
 
                 remaining_tracks = []
 
@@ -1131,6 +1076,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
                 # We need to keep them in two separate arrays because of different types
                 det_info = np.zeros((total_dets,3),dtype=int)
+                det_all_scores = np.zeros((total_dets,1),dtype=float)
                 det_all_boxes = np.zeros((total_dets,4))
                 det_counter = 0
 
@@ -1145,6 +1091,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                         # Save information of detection 
                         det_info[det_counter,0] = idx
                         det_info[det_counter,1] = i
+                        det_all_scores[det_counter] = det['score']
                         det_all_boxes[det_counter,:] = det['box']
                         det_counter +=1
                         det['assoc']=[]
@@ -1289,13 +1236,15 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 flow = g.maxflow()
 
                 assigned_labels = []
-                FP_graph = np.zeros(len(frames_graph),dtype=int)
+                #FP_graph = np.zeros(len(frames_graph),dtype=int)
+                FP_graph = [[] for i in range(len(frames_graph))]
                 FN_graph = np.zeros(len(frames_graph),dtype=int)
                 for i in range(total_nodes):
                     assigned_labels.append(g.get_segment(nodes[i]))
                     #Detection
                     if node_info[i,2] == 0 and assigned_labels[-1] == 0:
-                        FP_graph[node_info[i,0]] += 1
+                        #FP_graph[node_info[i,0]] += 1
+                        FP_graph[node_info[i,0]].append(det_all_scores[i])
                     #Track
                     if node_info[i,2] == 1 and assigned_labels[-1] == 1:
                         FN_graph[node_info[i,0]] += 1
@@ -1306,7 +1255,8 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 # Count number of FP and FN per frame
                 for f in frames_candidate:
                     idx_in_graph = [i for i,c in enumerate(frames_graph) if c[0] == f[0]]
-                    FP.append(FP_graph[idx_in_graph[0]])
+                    #FP.append(FP_graph[idx_in_graph[0]])
+                    FP.append(np.sum(FP_graph[idx_in_graph[0]]))
                     FN.append(FN_graph[idx_in_graph[0]])
 
                 idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))

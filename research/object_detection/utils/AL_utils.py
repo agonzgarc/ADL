@@ -47,11 +47,14 @@ def get_dataset(data_info):
                 dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
                 idx+=1
         elif data_info['dataset'] == 'synthia':
-            for path in pF:
+            for line in pF:
+                split_line = line.split(' ')
+                verified = True if split_line[1][:-1] == '1' else False
+                path = split_line[0]
                 split_path = path.split('/')
-                filename = split_path[-1][:-1]
+                filename = split_path[-1]
                 video = split_path[-4]+'/'+split_path[-3]
-                dataset.append({'idx':idx,'filename':filename,'video':video,'verified':True})
+                dataset.append({'idx':idx,'filename':filename,'video':video,'verified':verified})
                 idx+=1
         else:
             raise ValueError('Dataset error: select imagenet or synthia')
@@ -109,6 +112,39 @@ def convert_boxes_xy(box):
 def filter_detections(boxes,scores,labels,thresh_detection = 0.5):
     idx_good_det = scores > thresh_detection
     return boxes[idx_good_det,:],scores[idx_good_det],labels[idx_good_det]
+
+
+def augment_active_set(dataset,videos,active_set,num_neighbors=5):
+    """ Augment set of indices in active_set by adding a given number of neighbors
+    Arg:
+        dataset: structure with information about each frames
+        videos: list of video names
+        active_set: list of indices of active_set
+        num_neighbors: number of neighbors to include
+    Returns:
+        aug_active_set: augmented list of indices with neighbors
+    """
+    aug_active_set = []
+
+    # We need to do this per video to keep limits in check
+    for v in videos:
+        frames_video = [f['idx'] for f in dataset if f['video'] == v]
+        max_frame = np.max(frames_video)
+        idx_videos_active_set = [idx for idx in frames_video if idx in active_set]
+        idx_with_neighbors = [i for idx in idx_videos_active_set for i in range(idx-num_neighbors,idx+num_neighbors+1) if i >= 0 and i
+         <= max_frame ]
+        aug_active_set.extend(idx_with_neighbors)
+
+    # Convert to set to remove duplicates
+    return list(set(aug_active_set))
+
+
+def sum_scores(all_idx, all_fn,indices):
+    score = 0
+    for i,v in enumerate(all_idx):
+        if v in indices:
+            score += all_fn[i]
+    return score
 
 
 def obtain_FP_and_FN(dataset,videos,unlabeled_set,detected_boxes,detected_scores,detected_labels,groundtruth_boxes):
