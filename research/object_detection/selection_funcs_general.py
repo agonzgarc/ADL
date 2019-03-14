@@ -324,76 +324,6 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
 
         return indices
 
-# Pass unlabeled set as argument instead of recomputing here?
-def select_marginal(dataset,videos,active_set, detections, data_dir='', name='emptyName', cycle=1, run=1, budget=3200, neighbors_across=3, neighbors_in=5,measure='max',topk=3):
-
-        thresh_detection = 0.5
-
-        # We have detections only for the unlabeled dataset, be careful with indexing
-        aug_active_set =  AL.augment_active_set(dataset,videos,active_set,num_neighbors=neighbors_across)
-        unlabeled_set = [f['idx'] for f in dataset if f['idx'] not in aug_active_set and f['verified']]
-
-        predictions = detections['scores']
-        predictions = detections['scores_with_background']
-
-        scores_videos = []
-        idx_videos = []
-        #num_frames = []
-
-        t_start = time.time()
-
-        for v in videos:
-
-            # Select frames in current video
-            frames = [f['idx'] for f in dataset if f['video'] == v]
-
-            # Get only those that are not labeled
-            frames = [f for f in frames if f in unlabeled_set]
-
-            # If all frames of video are in active set, ignore video
-            if len(frames) > 0:
-                # Extract corresponding predictions
-                det_frames = [predictions[unlabeled_set.index(f)] for f in frames]
-
-                # Compute average frame confidence
-                avg_conf = []
-                for df in det_frames:
-                    sel_dets = df[df > thresh_detection]
-
-                    # Do inverse of least confidence --> selection prioritizes higher scores
-                    if len(sel_dets) > 0:
-                        if measure == 'avg':
-                            acf = 1-sel_dets.mean()
-                        elif measure == 'max':
-                            acf = 1-sel_dets.max()
-                        elif measure == 'topk':
-                            sel_dets = list(sel_dets)
-                            sel_dets.sort(reverse=True)
-                            acf = 1 - np.mean(sel_dets[:min(topk,len(sel_dets))])
-                        else:
-                            raise ValueError('Summary measure error')
-                    else:
-                        acf = 0
-                    avg_conf.append(acf)
-
-                # Convert to array for easier processing
-                avg_conf = np.asarray(avg_conf)
-
-                # Add scores
-                scores_videos.append(avg_conf)
-
-                # Frames already contains list of global indices
-                idx_videos.append(np.asarray(frames))
-
-                # Save number of frames for padding purposes
-                #num_frames.append(len(frames))
-
-        elapsed_time = time.time() - t_start
-        print("All videos processed in:{:.2f} seconds".format(elapsed_time))
-        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
-
-        return indices
-
 def compute_entropy_with_threshold(predictions, threshold, measure='max',topk=3):
     """ Given a list of predictions (class scores with background), it computes
     the entropy of each prediction in the list
@@ -496,9 +426,8 @@ def select_entropy(dataset,videos,active_set,detections,data_dir='', name='empty
 
 
 def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_boxes,data_dir,name,cycle,run,budget=3200):
-	
 	score_thresh=0.5
-	iou_thresh=0.75 	    
+	iou_thresh=0.75
 	scores_videos = []
 	idx_videos = []
 	disambiguity=[]
@@ -889,7 +818,7 @@ def select_FP_FN_FPN_PerVideo(dataset,videos,active_set,detections,groundtruth_b
 
 
 def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,dataset_name='imagenet', data_dir='.', name='emptyName', cycle=1, run=1, neighbors_across=3,
-                   neighbors_in=5,budget=3200,mode='FP'):
+                   neighbors_in=5,budget=3200,mode='FP',disambiguity=False,use_scores=False):
 
     # Selector configuration
     threshold_track = 0.5
@@ -939,7 +868,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
         frames_graph = [f for f in frames if f[0] in evaluation_set]
         frames_candidate = [f for f in frames if f[0] in candidate_set and f[2]]
 
-        # Get maximium index of frames in video
+        lst_conf_scores = []
 
         if len(frames_candidate) > 0:
             idx_all_frames_video = [f[0] for f in frames_graph]
@@ -990,6 +919,11 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
                 num_good_dets = labels_frame.shape[0]
                 num_good_dets_video.append(num_good_dets)
+
+                if num_good_dets>0:
+                    lst_conf_scores.append(1-np.mean(scores_frame))
+                else:
+                    lst_conf_scores.append(0)
 
                 for idx_det in range(num_good_dets):
 
@@ -1252,15 +1186,19 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 flow = g.maxflow()
 
                 assigned_labels = []
-                #FP_graph = np.zeros(len(frames_graph),dtype=int)
-                FP_graph = [[] for i in range(len(frames_graph))]
+                if use_scores:
+                    FP_graph = [[] for i in range(len(frames_graph))]
+                else:
+                    FP_graph = np.zeros(len(frames_graph),dtype=int)
                 FN_graph = np.zeros(len(frames_graph),dtype=int)
                 for i in range(total_nodes):
                     assigned_labels.append(g.get_segment(nodes[i]))
                     #Detection
                     if node_info[i,2] == 0 and assigned_labels[-1] == 0:
-                        #FP_graph[node_info[i,0]] += 1
-                        FP_graph[node_info[i,0]].append(det_all_scores[i])
+                        if use_scores:
+                            FP_graph[node_info[i,0]].append(det_all_scores[i])
+                        else:
+                            FP_graph[node_info[i,0]] += 1
                     #Track
                     if node_info[i,2] == 1 and assigned_labels[-1] == 1:
                         FN_graph[node_info[i,0]] += 1
@@ -1268,12 +1206,17 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 FP = []
                 FN = []
 
+                lst_conf_candidates = []
                 # Count number of FP and FN per frame
                 for f in frames_candidate:
                     idx_in_graph = [i for i,c in enumerate(frames_graph) if c[0] == f[0]]
-                    #FP.append(FP_graph[idx_in_graph[0]])
-                    FP.append(np.sum(FP_graph[idx_in_graph[0]]))
+                    if use_scores:
+                        FP.append(np.mean(FP_graph[idx_in_graph[0]]))
+                    else:
+                        FP.append(FP_graph[idx_in_graph[0]])
                     FN.append(FN_graph[idx_in_graph[0]])
+
+                    lst_conf_candidates.append(lst_conf_scores[idx_in_graph[0]])
 
                 idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
 
@@ -1293,7 +1236,11 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
     print("All videos processed in: {:.2f} seconds".format(elapsed_time))
 
     # Call selection function
-    indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1)
+    if disambiguity:
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1,disambiguity=[np.asarray(lst_conf_candidates)])
+    else:
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1)
+
     return indices
 
 

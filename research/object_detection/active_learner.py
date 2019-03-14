@@ -78,6 +78,10 @@ flags.DEFINE_string('dataset', 'imagenet',
                     'Dataset to be used')
 flags.DEFINE_string('mode_TC', 'FP',
                     'Mode used for graph TC (FP/FN/FPFN)')
+flags.DEFINE_boolean('disambiguity', False,
+                    'Disambiguation between frames')
+flags.DEFINE_boolean('use_scores', False,
+                    'Use scores in TCFP')
 flags.DEFINE_string('train_config_path', '',
                     'Path to a train_pb2.TrainConfig config file.')
 flags.DEFINE_string('input_config_path', '',
@@ -102,7 +106,7 @@ elif FLAGS.dataset == 'synthia':
           'annotations_dir':'Annotations',
           'dataset': FLAGS.dataset,
           'label_map_path': './data/synthia_label_map.pbtxt',
-          'set': 'train'}
+          'set': 'train_with_flag'}
           #'set': 'train_short'}
 else:
    raise ValueError('Dataset error: select imagenet or synthia')
@@ -172,6 +176,8 @@ if __name__ == "__main__":
     restart_cycle = FLAGS.restart_from_cycle
     neighbors_across = FLAGS.neighbors_across
     neighbors_in = FLAGS.neighbors_in
+    disambiguity = FLAGS.disambiguity
+    use_scores = FLAGS.use_scores
 
     mode_TC = FLAGS.mode_TC
     if 'TC' in name and not mode_TC in name:
@@ -221,7 +227,7 @@ if __name__ == "__main__":
 
         cycle = 0
         # Select one frame per video
-        indices = sel.select_random(dataset,videos,active_set,budget=len(videos))
+        indices = sel.select_random(dataset,videos,active_set,budget=len(videos), data_dir=FLAGS.data_dir, name=name, cycle=cycle, run=run_num)
 
         active_set.extend(indices)
 
@@ -443,7 +449,7 @@ if __name__ == "__main__":
                                                      name=name, cycle=cycle, run=run_num,budget=budget, measure='avg')
                     elif ('GraphTC' in name):
                         indices = sel.select_GraphTC(dataset,videos,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],data_dir=FLAGS.data_dir,
-                                                     name=name, cycle=cycle, run=run_num,budget=budget,mode=mode_TC)
+                                                     name=name, cycle=cycle, run=run_num,budget=budget,mode=mode_TC,disambiguity=disambiguity,use_scores=use_scores)
                     elif ('TCFP' in name):
                         indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
                     elif ('FP_gt' in name):
