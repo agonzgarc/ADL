@@ -1211,7 +1211,10 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 for f in frames_candidate:
                     idx_in_graph = [i for i,c in enumerate(frames_graph) if c[0] == f[0]]
                     if use_scores:
-                        FP.append(np.mean(FP_graph[idx_in_graph[0]]))
+                        if len(FP_graph[idx_in_graph[0]])>0:
+                            FP.append(np.mean(FP_graph[idx_in_graph[0]]))
+                        else:
+                            FP.append(0)
                     else:
                         FP.append(FP_graph[idx_in_graph[0]])
                     FN.append(FN_graph[idx_in_graph[0]])
