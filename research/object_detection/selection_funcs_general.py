@@ -237,6 +237,22 @@ def select_random(dataset,videos,active_set,data_dir='', name='emptyName', cycle
     indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget)
     return indices
 
+
+def select_random_minus(dataset,videos,active_set,data_dir='', name='emptyName', cycle=1, run=1,budget=3200,neighbors_across=3,neighbors_in=5):
+    """ Select a random subset of frames from all frames
+    Arg:
+        dataset: structure with information about each frame
+        active_set: list of indices of active_set
+    Returns:
+        indices: new indices to be added to active_set
+    """
+
+    #aug_active_set = augment_active_set(dataset,videos,active_set,num_neighbors=5)
+
+    frames = [f['idx'] for f in dataset if f['idx'] not in active_set and f['verified']]
+    return random.sample(frames,budget)
+
+
 # Pass unlabeled set as argument instead of recomputing here?
 def select_least_confident(dataset,videos,active_set, detections, data_dir='', name='emptyName', cycle=1, run=1, budget=3200, neighbors_across=3, neighbors_in=5,measure='max',topk=3):
 
