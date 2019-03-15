@@ -842,6 +842,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
     scores_videos = []
     idx_videos = []
+    disambiguity_videos = []
     #num_frames = []
 
     t_start = time.time()
@@ -980,6 +981,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 # No detections in video --> still add frame
                 idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
                 scores_videos.append(np.zeros(len(frames_candidate)))
+                disambiguity_videos.append(np.zeros(len(frames_candidate)))
 
             else:
 
@@ -1191,6 +1193,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                 else:
                     FP_graph = np.zeros(len(frames_graph),dtype=int)
                 FN_graph = np.zeros(len(frames_graph),dtype=int)
+
                 for i in range(total_nodes):
                     assigned_labels.append(g.get_segment(nodes[i]))
                     #Detection
@@ -1222,6 +1225,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
                     lst_conf_candidates.append(lst_conf_scores[idx_in_graph[0]])
 
                 idx_videos.append(np.asarray([fc[0] for fc in frames_candidate]))
+                disambiguity_videos.append(np.asarray(lst_conf_candidates))
 
                 if mode == 'FP':
                     scores_videos.append(np.asarray(FP))
