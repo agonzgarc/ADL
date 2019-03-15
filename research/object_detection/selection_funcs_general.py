@@ -1244,7 +1244,7 @@ def select_GraphTC(dataset,videos,candidate_set,evaluation_set,detections,datase
 
     # Call selection function
     if disambiguity:
-        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1,disambiguity=[np.asarray(lst_conf_candidates)])
+        indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1,disambiguity=disambiguity_videos)
     else:
         indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget, thresh_video=-1)
 
