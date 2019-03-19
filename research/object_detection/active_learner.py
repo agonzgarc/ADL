@@ -216,6 +216,7 @@ if __name__ == "__main__":
 
     active_set = []
 
+
     # Special case for cycle 0
     if num_cycles == 0:
 
@@ -224,10 +225,10 @@ if __name__ == "__main__":
         #all_verified  = [f['idx'] for f in dataset if f['verified']]
         #save_tf_record(data_info,all_verified)
 
-
         cycle = 0
         # Select one frame per video
         indices = sel.select_random(dataset,videos,active_set,budget=len(videos), data_dir=FLAGS.data_dir, name=name, cycle=cycle, run=run_num)
+        #indices = sel.select_random(dataset,videos,active_set,budget=budget, data_dir=FLAGS.data_dir, name=name, cycle=cycle, run=run_num)
 
         active_set.extend(indices)
 
@@ -376,10 +377,8 @@ if __name__ == "__main__":
                     if os.path.exists(eval_train_dir + 'detections.dat'):
 
                         with open(eval_train_dir + 'detections.dat','rb') as infile:
-                            try:
-                                detected_boxes = pickle.load(infile)
-                            except:
-                                detected_boxes = pickle.load(infile,encoding='latin1')
+                            detected_boxes = pickle.load(infile)
+                            #detected_boxes = pickle.load(infile,encoding='latin1')
 
                         # Load this only if needed
                         #with open(eval_train_dir + 'groundtruth.dat','rb') as infile2:
@@ -436,20 +435,20 @@ if __name__ == "__main__":
 
                 # Select the actual indices that will be added to the active set
                 if ('Rnd' in name):
-                    #indices = sel.select_random(dataset,videos,active_set,budget=budget,neighbors_across=neighbors_across,neighbors_in=neighbors_in,
-                                                #data_dir=FLAGS.data_dir, name=name, cycle=cycle, run=run_num)
-                    indices = sel.select_random_minus(dataset,videos,active_set,budget=budget,neighbors_across=neighbors_across,neighbors_in=neighbors_in,
+                    indices = sel.select_random(dataset,videos,active_set,budget=budget,neighbors_across=neighbors_across,neighbors_in=neighbors_in,
                                                 data_dir=FLAGS.data_dir, name=name, cycle=cycle, run=run_num)
+                    #indices = sel.select_random_minus(dataset,videos,active_set,budget=budget,neighbors_across=neighbors_across,neighbors_in=neighbors_in,
+                                                #data_dir=FLAGS.data_dir, name=name, cycle=cycle, run=run_num)
                 else:
                     if ('Ent' in name):
-                        indices = sel.select_entropy(dataset,videos,active_set,detected_boxes, data_dir=FLAGS.data_dir,
+                        indices = sel.select_entropy(dataset,videos,active_set,detected_boxes, data_dir=FLAGS.data_dir,neighbors_across=neighbors_across,neighbors_in=neighbors_in,
                                                      name=name, cycle=cycle, run=run_num,budget=budget, measure='max')
                     elif ('Lst' in name):
-                        indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes, data_dir=FLAGS.data_dir,
+                        indices = sel.select_least_confident(dataset,videos,active_set,detected_boxes, data_dir=FLAGS.data_dir,neighbors_across=neighbors_across,neighbors_in=neighbors_in,
                                                      name=name, cycle=cycle, run=run_num,budget=budget, measure='avg')
                     elif ('GraphTC' in name):
                         indices = sel.select_GraphTC(dataset,videos,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],data_dir=FLAGS.data_dir,
-                                                     name=name, cycle=cycle, run=run_num,budget=budget,mode=mode_TC,disambiguity=disambiguity,use_scores=use_scores)
+                                                     neighbors_across=neighbors_across,neighbors_in=neighbors_in,name=name, cycle=cycle, run=run_num,budget=budget,mode=mode_TC,disambiguity=disambiguity, use_scores=use_scores)
                     elif ('TCFP' in name):
                         indices = sel.select_TCFP(dataset,videos,FLAGS.data_dir,candidate_set,evaluation_set,detected_boxes,dataset_name=data_info['dataset'],budget=budget)
                     elif ('FP_gt' in name):

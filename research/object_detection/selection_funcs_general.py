@@ -266,6 +266,8 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
 
         scores_videos = []
         idx_videos = []
+        #num_dets = []
+        #num_good_dets = []
         #num_frames = []
 
         t_start = time.time()
@@ -277,7 +279,7 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
 
             # Get only those that are not labeled
             frames = [f for f in frames if f in unlabeled_set]
-
+            #num_frames.append(len(frames))
             # If all frames of video are in active set, ignore video
             if len(frames) > 0:
                 # Extract corresponding predictions
@@ -285,8 +287,11 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
 
                 # Compute average frame confidence
                 avg_conf = []
+                #num_dets.append(len(det_frames))
                 for df in det_frames:
                     sel_dets = df[df > thresh_detection]
+
+                    #num_good_dets.append(len(sel_dets))
 
                     # Do inverse of least confidence --> selection prioritizes higher scores
                     if len(sel_dets) > 0:
@@ -320,6 +325,7 @@ def select_least_confident(dataset,videos,active_set, detections, data_dir='', n
 
         elapsed_time = time.time() - t_start
         print("All videos processed in:{:.2f} seconds".format(elapsed_time))
+        #pdb.set_trace()
         indices=top_score_frames_selector(scores_videos, idx_videos, data_dir=data_dir, name=name, cycle=cycle, run=run, num_neighbors=neighbors_in, budget=budget,thresh_video=-1)
 
         return indices
